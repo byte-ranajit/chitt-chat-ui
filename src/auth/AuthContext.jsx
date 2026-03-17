@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { login as loginApi } from "../services/authService";
-import { getToken, getUser, logout as logoutUtis } from "./AuthUtils";
+import { getToken, getUser, logout as logoutUtis, saveUser } from "./AuthUtils";
 
 const AuthContext = createContext();
 
@@ -22,9 +22,15 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const data = await loginApi(username, password);
-      const token = data.token;
+      await loginApi(username, password);
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("Login succeeded but no token is available in storage.");
+      }
+
       const payload = JSON.parse(atob(token.split(".")[1]));
+      saveUser(payload);
       setUser(payload);
       return payload;
     } catch (error) {

@@ -3,7 +3,25 @@ export const getToken = () => {
 };
 
 export const getUser = () => {
-    return JSON.parse(localStorage.getItem("userName"));
+  const storedUser = localStorage.getItem("user");
+
+  if (storedUser) {
+    return JSON.parse(storedUser);
+  }
+
+  const token = getToken();
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+};
+
+export const saveUser = (user) => {
+  localStorage.setItem("user", JSON.stringify(user));
 };
 
 export const isLoggedIn = () => {
@@ -13,6 +31,7 @@ export const isLoggedIn = () => {
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  localStorage.removeItem("userName");
 };
 
 export const isTokenExpired = () => {
@@ -21,4 +40,11 @@ export const isTokenExpired = () => {
 
   const payload = JSON.parse(atob(token.split('.')[1]));
   return payload.exp * 1000 < Date.now();
+};
+
+
+export const getUserName = (user = getUser()) => {
+  if (!user || typeof user !== "object") return null;
+
+  return user.userName ?? user.username ?? user.sub ?? user.preferred_username ?? null;
 };
