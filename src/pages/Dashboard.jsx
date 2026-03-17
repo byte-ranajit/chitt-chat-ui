@@ -1,9 +1,15 @@
 import React from "react";
+import { logout } from "../auth/AuthUtils";
 
 function Dashboard() {
+  const handleLogout = () => {
+    logout();
+    window.location.href = "/login";
+  };
   return (
     <div style={styles.container}>
       <h1>Welcome to the Dashboard!</h1>
+      <button onClick={handleLogout}>Logout</button>
     </div>
   );
 }
@@ -14,7 +20,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    background: "#f2f2f2",
+    background: "#992525",
   },
 };
 
