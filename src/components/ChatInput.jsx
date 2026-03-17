@@ -1,51 +1,60 @@
 import { useState } from "react";
-import {getUser} from "../auth/AuthUtils.js";
-import {sendMessage} from "../api/chatApi.js";
+import { getUser, getUserName } from "../auth/AuthUtils.js";
+import { sendMessage } from "../api/chatApi.js";
 
 function ChatInput({ selectedUser, setMessages }) {
+  const [text, setText] = useState("");
+  const currentUser = getUser();
 
-    const [text, setText] = useState("");
-    const currentUser = getUser();
+  const handleSend = async () => {
+    if (!text.trim()) return;
 
-    const handleSend = async () => {
+    const sender = getUserName(currentUser);
+    const receiver = selectedUser?.userName ?? selectedUser?.username;
 
-        if (!text.trim()) return;
+    if (!sender || !receiver) {
+      console.error("Cannot send message: sender or receiver is missing", {
+        sender,
+        receiver,
+        currentUser,
+        selectedUser,
+      });
+      return;
+    }
 
-        const newMsg = {
-            content: text,
-            sender: currentUser.username,
-            receiver: selectedUser.username
-        };
-
-        const res = await sendMessage(newMsg);
-
-        setMessages(prev => [...prev, {
-            ...res,
-            isMe: true
-        }]);
-
-        setText("");
+    const newMsg = {
+      content: text,
+      sender,
+      receiver,
     };
 
-    return (
-        <div className="flex p-3 bg-gray-800">
+    const res = await sendMessage(newMsg);
 
-            <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                className="flex-1 p-2 bg-gray-700 rounded outline-none"
-                placeholder="Type a message..."
-            />
+    setMessages((prev) => [
+      ...prev,
+      {
+        ...res,
+        isMe: true,
+      },
+    ]);
 
-            <button
-                onClick={handleSend}
-                className="ml-2 px-4 bg-green-600 rounded"
-            >
-                Send
-            </button>
+    setText("");
+  };
 
-        </div>
-    );
+  return (
+    <div className="flex p-3 bg-gray-800">
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="flex-1 p-2 bg-gray-700 rounded outline-none"
+        placeholder="Type a message..."
+      />
+
+      <button onClick={handleSend} className="ml-2 px-4 bg-green-600 rounded">
+        Send
+      </button>
+    </div>
+  );
 }
 
 export default ChatInput;
