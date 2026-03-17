@@ -69,6 +69,20 @@ function ChatWindow({ selectedUser }) {
   }, [fetchConversation]);
 
   useEffect(() => {
+    if (!selectedUserName || !currentUserName) return;
+
+    const pollIntervalMs = Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
+
+    const intervalId = setInterval(() => {
+      fetchConversation();
+    }, pollIntervalMs);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [fetchConversation, selectedUserName, currentUserName]);
+
+  useEffect(() => {
     if (!currentUserName) return;
 
     const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
