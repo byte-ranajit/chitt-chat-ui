@@ -8,20 +8,21 @@ function ChatWindow({ selectedUser }) {
 
     const [messages, setMessages] = useState([]);
     const currentUser = getUser();
+    console.log("Current user in ChatWindow:", currentUser);
 
     useEffect(() => {
         if (!selectedUser) return;
 
-        getInbox(currentUser.username).then(data => {
+        getInbox(currentUser.userName).then(data => {
 
             const filtered = data.filter(msg =>
-                (msg.sender === currentUser.username && msg.receiver === selectedUser.username) ||
-                (msg.receiver === currentUser.username && msg.sender === selectedUser.username)
+                (msg.sender === currentUser.userName && msg.receiver === selectedUser.userName) ||
+                (msg.receiver === currentUser.userName && msg.sender === selectedUser.userName)
             );
 
             const formatted = filtered.map(msg => ({
                 ...msg,
-                isMe: msg.sender === currentUser.username
+                isMe: msg.sender === currentUser.userName
             }));
 
             setMessages(formatted);
@@ -37,7 +38,7 @@ function ChatWindow({ selectedUser }) {
         <div className="w-3/4 flex flex-col">
 
             <div className="p-4 bg-gray-800 border-b">
-                {selectedUser.username}
+                {selectedUser.userName}
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-2">

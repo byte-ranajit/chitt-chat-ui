@@ -3,8 +3,25 @@ export const getToken = () => {
 };
 
 export const getUser = () => {
-    return JSON.parse(localStorage.getItem("user"));
+    const currentUser = localStorage.getItem("user");
+    if (currentUser) {
+        return JSON.parse(currentUser);
+    }
+    const token = getToken();
+    if (!token) return null;
+
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return payload;
+    } catch (error) {
+        console.error("Error parsing token:", error);
+        return null;
+    }
 };
+
+export const saveUser = (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
+}
 
 export const isLoggedIn = () => {
   return !!getToken();
@@ -13,6 +30,7 @@ export const isLoggedIn = () => {
 export const logout = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
+  localStorage.removeItem("userName");
 };
 
 export const isTokenExpired = () => {

@@ -38,3 +38,13 @@ export const markAsRead = async (messageId) => {
     throw error;
   }
 };
+
+export const getUsers = async () => {
+  try {
+    const res = await authApi.get("/user");
+    return res.data;
+  } catch (error) {
+    console.error("Get users error:", error);
+    throw error;
+  }
+};
