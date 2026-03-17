@@ -4,8 +4,11 @@ import {getUser} from "../auth/AuthUtils.js";
 function Sidebar({ onSelectUser }) {
 
   const [users, setUsers] = useState([]);
-    useEffect(() => {
-    getUser().then(res => setUsers(res.data));
+  useEffect(() => {
+    const currentUser = getUser();
+    if (currentUser) {
+      setUsers([currentUser]);
+    }
   }, []);
 
   return (
