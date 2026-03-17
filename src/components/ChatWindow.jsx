@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import {getUser} from "../auth/AuthUtils.js";
 import {getInbox} from "../api/chatApi.js";
+import MessageBubble from "./MessageBubble.jsx";
+import ChatInput from "./ChatInput.jsx";
+
 function ChatWindow({ selectedUser }) {
 
     const [messages, setMessages] = useState([]);

@@ -1,4 +1,5 @@
 import axios from "axios";
+import { logout } from "../auth/AuthUtils";
 
 const axiosClient = axios.create({
   baseURL: "http://localhost:8080",
