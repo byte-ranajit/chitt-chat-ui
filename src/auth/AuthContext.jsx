@@ -24,9 +24,11 @@ export const AuthProvider = ({ children }) => {
     try {
       await loginApi(username, password);
       const token = getToken();
-      if(!token){
-        throw new Error("No token found after login");
+
+      if (!token) {
+        throw new Error("Login succeeded but no token is available in storage.");
       }
+
       const payload = JSON.parse(atob(token.split(".")[1]));
       saveUser(payload);
       setUser(payload);
