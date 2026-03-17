@@ -5,7 +5,10 @@ import MessageBubble from "./MessageBubble.jsx";
 import ChatInput from "./ChatInput.jsx";
 
 const getMessageKey = (msg) =>
-  msg.id ?? [msg.sender, msg.receiver, msg.content, msg.createdAt ?? msg.timestamp].join("|");
+  msg.id ??
+  [msg.sender, msg.receiver, msg.content, msg.createdAt ?? msg.timestamp].join(
+    "|",
+  );
 
 const sortByDateOrId = (a, b) => {
   const dateA = Date.parse(a.createdAt ?? a.timestamp ?? "");
@@ -23,7 +26,9 @@ const sortByDateOrId = (a, b) => {
 };
 
 const normalizeConversation = (conversation, currentUserName) =>
-  Array.from(new Map(conversation.map((msg) => [getMessageKey(msg), msg])).values())
+  Array.from(
+    new Map(conversation.map((msg) => [getMessageKey(msg), msg])).values(),
+  )
     .sort(sortByDateOrId)
     .map((msg) => ({
       ...msg,
@@ -35,7 +40,7 @@ function ChatWindow({ selectedUser }) {
 
   const currentUser = getUser();
   const currentUserName = getUserName(currentUser);
-  const selectedUserName = selectedUser?.userName ?? selectedUser?.username;
+  const selectedUserName = selectedUser?.userName ?? selectedUser?.userName;
 
   const fetchConversation = useCallback(async () => {
     if (!selectedUserName || !currentUserName) {
@@ -51,7 +56,7 @@ function ChatWindow({ selectedUser }) {
     const conversation = [...currentUserInbox, ...selectedUserInbox].filter(
       (msg) =>
         (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
-        (msg.receiver === currentUserName && msg.sender === selectedUserName)
+        (msg.receiver === currentUserName && msg.sender === selectedUserName),
     );
 
     setMessages(normalizeConversation(conversation, currentUserName));
@@ -76,12 +81,16 @@ function ChatWindow({ selectedUser }) {
         if (!selectedUserName) return;
 
         const belongsToOpenConversation =
-          (payload.sender === currentUserName && payload.receiver === selectedUserName) ||
-          (payload.receiver === currentUserName && payload.sender === selectedUserName);
+          (payload.sender === currentUserName &&
+            payload.receiver === selectedUserName) ||
+          (payload.receiver === currentUserName &&
+            payload.sender === selectedUserName);
 
         if (!belongsToOpenConversation) return;
 
-        setMessages((prev) => normalizeConversation([...prev, payload], currentUserName));
+        setMessages((prev) =>
+          normalizeConversation([...prev, payload], currentUserName),
+        );
       } catch (error) {
         console.error("Unable to parse incoming websocket payload", error);
       }
@@ -97,7 +106,9 @@ function ChatWindow({ selectedUser }) {
   }, [currentUserName, selectedUserName]);
 
   if (!selectedUser) {
-    return <div className="w-3/4 flex items-center justify-center">Select chat</div>;
+    return (
+      <div className="w-3/4 flex items-center justify-center">Select chat</div>
+    );
   }
 
   return (

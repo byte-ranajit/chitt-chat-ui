@@ -10,7 +10,7 @@ function ChatInput({ selectedUser, setMessages }) {
     if (!text.trim()) return;
 
     const sender = getUserName(currentUser);
-    const receiver = selectedUser?.userName ?? selectedUser?.username;
+    const receiver = selectedUser?.userName ?? selectedUser?.userName;
 
     if (!sender || !receiver) {
       console.error("Cannot send message: sender or receiver is missing", {

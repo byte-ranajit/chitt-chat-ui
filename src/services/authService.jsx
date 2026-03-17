@@ -25,16 +25,18 @@ const getTokenFromResponse = (payload) => {
   return null;
 };
 
-export const login = async (username, password) => {
+export const login = async (userName, password) => {
   const response = await axiosClient.post("/auth/login", {
-    username,
+    userName,
     password,
   });
 
   const token = getTokenFromResponse(response.data);
 
   if (!token) {
-    throw new Error("Login succeeded but no auth token was returned by the API.");
+    throw new Error(
+      "Login succeeded but no auth token was returned by the API.",
+    );
   }
 
   localStorage.setItem("token", token);

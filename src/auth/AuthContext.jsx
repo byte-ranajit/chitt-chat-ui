@@ -20,13 +20,15 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (username, password) => {
+  const login = async (userName, password) => {
     try {
-      await loginApi(username, password);
+      await loginApi(userName, password);
       const token = getToken();
 
       if (!token) {
-        throw new Error("Login succeeded but no token is available in storage.");
+        throw new Error(
+          "Login succeeded but no token is available in storage.",
+        );
       }
 
       const payload = JSON.parse(atob(token.split(".")[1]));
@@ -44,7 +46,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const value = { user, login, logout, isAuthenticated: !!user,};
+  const value = { user, login, logout, isAuthenticated: !!user };
 
   // Prevent app render until auth check done
   if (loading) {
