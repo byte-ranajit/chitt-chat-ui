@@ -23,63 +23,43 @@ function Login() {
   };
 
   return (
-    <div style={styles.container}>
-      <form style={styles.form} onSubmit={handleSubmit}>
-        <h2>Login</h2>
-
-        <input
-          type="text"
-          placeholder="Enter Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={styles.input}
-        />
-
-        <input
-          type="password"
-          placeholder="Enter Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-        />
-
-        <button type="submit" style={styles.button}>
+    <div className="flex h-screen items-center justify-center bg-gray-100">
+      
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
+        
+        <h2 className="text-2xl font-bold text-center mb-6">
           Login
-        </button>
-      </form>
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+
+          <input
+            type="text"
+            placeholder="Username"
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="Password"
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button
+            className="w-full bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition"
+          >
+            Login
+          </button>
+
+        </form>
+      </div>
+
     </div>
   );
 }
-
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f2f2f2",
-  },
-  form: {
-    padding: "40px",
-    background: "white",
-    borderRadius: "10px",
-    boxShadow: "0px 0px 10px rgba(0,0,0,0.1)",
-    display: "flex",
-    flexDirection: "column",
-    width: "300px",
-  },
-  input: {
-    marginBottom: "15px",
-    padding: "10px",
-    fontSize: "16px",
-  },
-  button: {
-    padding: "10px",
-    background: "#4CAF50",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-  },
-};
 
 export default Login;
