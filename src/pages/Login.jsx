@@ -1,37 +1,32 @@
-import { useState,useEffect} from 'react';
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
-import { isLoggedIn } from '../auth/AuthUtils';
-
+import { isLoggedIn } from "../auth/AuthUtils";
 
 function Login() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
-const navigate = useNavigate();
+  useEffect(() => {}, [navigate]);
 
-useEffect(() => {
-  if (isLoggedIn()) {
-    navigate("/dashboard");
-  }
-}, [navigate]);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Handle login logic here
+    console.log("Username:", username);
+    console.log("Password:", password);
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  // Handle login logic here
-  console.log('Username:', username);
-  console.log('Password:', password);
-
-  try {
-    await login(username, password);
-    // TODO: Show success message or redirect to dashboard
-    // rewrite the code to use navigate with condition that checks if the user is logged in
-  } catch (err) {
-    console.error("Login failed:", err);
-    alert("Login failed: " + (err.message || "Unknown error"));
-  }
-};
+    try {
+      await login(username, password);
+      if (isLoggedIn()) {
+        navigate("/dashboard");
+      }
+    } catch (err) {
+      console.error("Login failed:", err);
+      alert("Login failed: " + (err.message || "Unknown error"));
+    }
+  };
   return (
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleSubmit}>
@@ -53,9 +48,7 @@ const handleSubmit = async (e) => {
           style={styles.input}
         />
 
-        <button style={styles.button}>
-          Login
-        </button>
+        <button style={styles.button}>Login</button>
       </form>
     </div>
   );
