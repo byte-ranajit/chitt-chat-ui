@@ -89,24 +89,28 @@ function ChatWindow({ selectedUser }) {
     const socket = new WebSocket(`${wsUrl}/messages/${currentUserName}`);
 
     socket.onmessage = (event) => {
+      if (!selectedUserName) return;
+
       try {
         const payload = JSON.parse(event.data);
-
-        if (!selectedUserName) return;
+        const message = payload?.data ?? payload?.message ?? payload;
 
         const belongsToOpenConversation =
-          (payload.sender === currentUserName &&
-            payload.receiver === selectedUserName) ||
-          (payload.receiver === currentUserName &&
-            payload.sender === selectedUserName);
+          (message.sender === currentUserName &&
+            message.receiver === selectedUserName) ||
+          (message.receiver === currentUserName &&
+            message.sender === selectedUserName);
 
-        if (!belongsToOpenConversation) return;
+        if (belongsToOpenConversation) {
+          setMessages((prev) =>
+            normalizeConversation([...prev, message], currentUserName),
+          );
+        }
 
-        setMessages((prev) =>
-          normalizeConversation([...prev, payload], currentUserName),
-        );
+        fetchConversation();
       } catch (error) {
         console.error("Unable to parse incoming websocket payload", error);
+        fetchConversation();
       }
     };
 
@@ -117,7 +121,7 @@ function ChatWindow({ selectedUser }) {
     return () => {
       socket.close();
     };
-  }, [currentUserName, selectedUserName]);
+  }, [currentUserName, selectedUserName, fetchConversation]);
 
   if (!selectedUser) {
     return (
