@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getUser, getUserName } from "../auth/AuthUtils.js";
 import { getInbox } from "../api/chatApi.js";
 import MessageBubble from "./MessageBubble.jsx";
@@ -10,24 +10,65 @@ function ChatWindow({ selectedUser }) {
   const currentUserName = getUserName(currentUser);
   const selectedUserName = selectedUser?.userName ?? selectedUser?.username;
 
-  useEffect(() => {
-    if (!selectedUserName || !currentUserName) return;
+  const fetchConversation = useCallback(async () => {
+    if (!selectedUserName || !currentUserName) {
+      setMessages([]);
+      return;
+    }
 
-    getInbox(currentUserName).then((data) => {
-      const filtered = data.filter(
-        (msg) =>
-          (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
-          (msg.receiver === currentUserName && msg.sender === selectedUserName)
-      );
+    const [currentUserInbox, selectedUserInbox] = await Promise.all([
+      getInbox(currentUserName),
+      getInbox(selectedUserName),
+    ]);
 
-      const formatted = filtered.map((msg) => ({
-        ...msg,
-        isMe: msg.sender === currentUserName,
-      }));
+    const conversation = [...currentUserInbox, ...selectedUserInbox].filter(
+      (msg) =>
+        (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
+        (msg.receiver === currentUserName && msg.sender === selectedUserName)
+    );
 
-      setMessages(formatted);
+    const uniqueConversation = Array.from(
+      new Map(
+        conversation.map((msg) => {
+          const fallbackKey = [msg.sender, msg.receiver, msg.content, msg.createdAt].join("|");
+          return [msg.id ?? fallbackKey, msg];
+        })
+      ).values()
+    ).sort((a, b) => {
+      const dateA = Date.parse(a.createdAt ?? a.timestamp ?? "");
+      const dateB = Date.parse(b.createdAt ?? b.timestamp ?? "");
+
+      if (!Number.isNaN(dateA) && !Number.isNaN(dateB)) {
+        return dateA - dateB;
+      }
+
+      if (typeof a.id === "number" && typeof b.id === "number") {
+        return a.id - b.id;
+      }
+
+      return 0;
     });
+
+    const formatted = uniqueConversation.map((msg) => ({
+      ...msg,
+      isMe: msg.sender === currentUserName,
+    }));
+
+    setMessages(formatted);
   }, [selectedUserName, currentUserName]);
+
+  useEffect(() => {
+    const initialFetchId = setTimeout(() => {
+      fetchConversation();
+    }, 0);
+
+    const pollingId = setInterval(fetchConversation, 5000);
+
+    return () => {
+      clearTimeout(initialFetchId);
+      clearInterval(pollingId);
+    };
+  }, [fetchConversation]);
 
   if (!selectedUser) {
     return <div className="w-3/4 flex items-center justify-center">Select chat</div>;
