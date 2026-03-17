@@ -10,9 +10,9 @@ export const sendMessage = async (message) => {
   }
 };
 
-export const getInbox = async (username) => {
+export const getInbox = async (userName) => {
   try {
-    const res = await authApi.get(`/messages/inbox/${username}`);
+    const res = await authApi.get(`/messages/inbox/${userName}`);
     return res.data;
   } catch (error) {
     console.error("Inbox fetch error:", error);

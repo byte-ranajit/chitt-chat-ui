@@ -46,5 +46,5 @@ export const isTokenExpired = () => {
 export const getUserName = (user = getUser()) => {
   if (!user || typeof user !== "object") return null;
 
-  return user.userName ?? user.username ?? user.sub ?? user.preferred_username ?? null;
+  return user.userName ?? user.userName ?? user.sub ?? user.preferred_username ?? null;
 };
