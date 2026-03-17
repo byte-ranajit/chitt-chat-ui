@@ -41,7 +41,7 @@ export const markAsRead = async (messageId) => {
 
 export const getUsers = async () => {
   try {
-    const res = await authApi.get("/users");
+    const res = await authApi.get("/user");
     return res.data;
   } catch (error) {
     console.error("Get users error:", error);

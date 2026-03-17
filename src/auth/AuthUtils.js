@@ -3,7 +3,7 @@ export const getToken = () => {
 };
 
 export const getUser = () => {
-    return JSON.parse(localStorage.getItem("user"));
+    return JSON.parse(localStorage.getItem("userName"));
 };
 
 export const isLoggedIn = () => {
