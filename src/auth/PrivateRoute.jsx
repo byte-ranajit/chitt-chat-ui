@@ -2,12 +2,10 @@ import { Navigate } from "react-router-dom";
 import { isLoggedIn, isTokenExpired } from "./AuthUtils";
 
 function PrivateRoute({ children }) {
+  const token = localStorage.getItem("token");
+  const hasValidToken = token && token !== "undefined" && token !== "null";
 
-  if (!isLoggedIn() || isTokenExpired()) {
-    // logout(); // optional but recommended
-    return <Navigate to="/login" />;
-  }
-
-  return children;
+  return hasValidToken ? children : <Navigate to="/login" replace />;
 }
+
 export default PrivateRoute;
