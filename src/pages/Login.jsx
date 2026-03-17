@@ -15,7 +15,7 @@ function Login() {
 
     try {
       await login(username, password);
-      navigate("/dashboard");
+      navigate("/chat");
     } catch (err) {
       console.error(err);
       alert("Login failed");

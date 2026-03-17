@@ -1,4 +1,4 @@
-import axiosClient from "../api/axiosCLient";
+import axiosClient from "../api/authApi";
 
 const getTokenFromResponse = (payload) => {
   if (!payload || typeof payload !== "object") {
