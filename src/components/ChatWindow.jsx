@@ -69,30 +69,48 @@ function ChatWindow({ selectedUser }) {
   }, [fetchConversation]);
 
   useEffect(() => {
+    if (!selectedUserName || !currentUserName) return;
+
+    const pollIntervalMs = Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
+
+    const intervalId = setInterval(() => {
+      fetchConversation();
+    }, pollIntervalMs);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [fetchConversation, selectedUserName, currentUserName]);
+
+  useEffect(() => {
     if (!currentUserName) return;
 
     const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
     const socket = new WebSocket(`${wsUrl}/messages/${currentUserName}`);
 
     socket.onmessage = (event) => {
+      if (!selectedUserName) return;
+
       try {
         const payload = JSON.parse(event.data);
-
-        if (!selectedUserName) return;
+        const message = payload?.data ?? payload?.message ?? payload;
 
         const belongsToOpenConversation =
-          (payload.sender === currentUserName &&
-            payload.receiver === selectedUserName) ||
-          (payload.receiver === currentUserName &&
-            payload.sender === selectedUserName);
+          (message.sender === currentUserName &&
+            message.receiver === selectedUserName) ||
+          (message.receiver === currentUserName &&
+            message.sender === selectedUserName);
 
-        if (!belongsToOpenConversation) return;
+        if (belongsToOpenConversation) {
+          setMessages((prev) =>
+            normalizeConversation([...prev, message], currentUserName),
+          );
+        }
 
-        setMessages((prev) =>
-          normalizeConversation([...prev, payload], currentUserName),
-        );
+        fetchConversation();
       } catch (error) {
         console.error("Unable to parse incoming websocket payload", error);
+        fetchConversation();
       }
     };
 
@@ -103,7 +121,7 @@ function ChatWindow({ selectedUser }) {
     return () => {
       socket.close();
     };
-  }, [currentUserName, selectedUserName]);
+  }, [currentUserName, selectedUserName, fetchConversation]);
 
   if (!selectedUser) {
     return (
