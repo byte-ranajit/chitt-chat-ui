@@ -1,32 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../services/authService";
-import { isLoggedIn } from "../auth/AuthUtils";
+import { useAuth } from "../auth/AuthContext";
 
 function Login() {
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {}, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Username:", username);
-    console.log("Password:", password);
 
     try {
       await login(username, password);
-      if (isLoggedIn()) {
-        navigate("/dashboard");
-      }
+      navigate("/dashboard");
     } catch (err) {
-      console.error("Login failed:", err);
-      alert("Login failed: " + (err.message || "Unknown error"));
+      console.error(err);
+      alert("Login failed");
     }
   };
+
   return (
     <div style={styles.container}>
       <form style={styles.form} onSubmit={handleSubmit}>
@@ -48,11 +43,14 @@ function Login() {
           style={styles.input}
         />
 
-        <button style={styles.button}>Login</button>
+        <button type="submit" style={styles.button}>
+          Login
+        </button>
       </form>
     </div>
   );
 }
+
 const styles = {
   container: {
     height: "100vh",
@@ -83,4 +81,5 @@ const styles = {
     cursor: "pointer",
   },
 };
+
 export default Login;
