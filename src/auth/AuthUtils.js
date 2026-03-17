@@ -24,6 +24,10 @@ export const saveUser = (user) => {
   localStorage.setItem("user", JSON.stringify(user));
 };
 
+export const saveUser = (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
+}
+
 export const isLoggedIn = () => {
   return !!getToken();
 };
