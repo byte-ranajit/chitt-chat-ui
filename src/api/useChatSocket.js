@@ -2,6 +2,15 @@ import SockJS from "sockjs-client";
 import { useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 
+function parseSocketMessage(message) {
+  try {
+    return JSON.parse(message.body);
+  } catch (error) {
+    console.error("Unable to parse websocket payload", error, message.body);
+    return null;
+  }
+}
+
 export default function useChatSocket(userName, onMessageReceived) {
   const clientRef = useRef(null);
   const onMessageReceivedRef = useRef(onMessageReceived);
@@ -24,14 +33,29 @@ export default function useChatSocket(userName, onMessageReceived) {
       onConnect: () => {
         console.log("Connected to WebSocket");
 
-        client.subscribe(`/user/${userName}/queue/messages`, (message) => {
-          const body = JSON.parse(message.body);
+        const handleIncoming = (message) => {
+          const body = parseSocketMessage(message);
+
+          if (!body) {
+            return;
+          }
+
           onMessageReceivedRef.current?.(body);
-        });
+        };
+
+        // Standard Spring user destination mapping.
+        client.subscribe("/user/queue/messages", handleIncoming);
+
+        // Fallback for backends that include username in the destination path.
+        client.subscribe(`/user/${userName}/queue/messages`, handleIncoming);
       },
 
       onStompError: (frame) => {
         console.error("Broker error:", frame);
+      },
+
+      onWebSocketError: (event) => {
+        console.error("WebSocket connection error:", event);
       },
     });
 
