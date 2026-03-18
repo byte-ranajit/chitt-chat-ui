@@ -1,4 +1,4 @@
-import React from "react";
+window.global = window;
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
