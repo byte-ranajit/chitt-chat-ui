@@ -15,16 +15,26 @@ function parseSocketMessage(message) {
   }
 }
 
-export default function useChatSocket(userName, onMessageReceived) {
+export default function useChatSocket(
+  userName,
+  onMessageReceived,
+  onConnectionChange,
+) {
   const clientRef = useRef(null);
   const onMessageReceivedRef = useRef(onMessageReceived);
+  const onConnectionChangeRef = useRef(onConnectionChange);
 
   useEffect(() => {
     onMessageReceivedRef.current = onMessageReceived;
   }, [onMessageReceived]);
 
   useEffect(() => {
+    onConnectionChangeRef.current = onConnectionChange;
+  }, [onConnectionChange]);
+
+  useEffect(() => {
     if (!userName) {
+      onConnectionChangeRef.current?.(false);
       return undefined;
     }
 
@@ -44,6 +54,8 @@ export default function useChatSocket(userName, onMessageReceived) {
         : {},
 
       onConnect: () => {
+        onConnectionChangeRef.current?.(true);
+
         const handleIncoming = (message) => {
           const body = parseSocketMessage(message);
 
@@ -67,14 +79,16 @@ export default function useChatSocket(userName, onMessageReceived) {
 
       onStompError: (frame) => {
         console.error("Broker error:", frame);
+        onConnectionChangeRef.current?.(false);
       },
 
       onWebSocketError: (event) => {
         console.error("WebSocket connection error:", event);
+        onConnectionChangeRef.current?.(false);
       },
 
       onDisconnect: () => {
-        console.log("Disconnected from WebSocket");
+        onConnectionChangeRef.current?.(false);
       },
     });
 
@@ -84,6 +98,7 @@ export default function useChatSocket(userName, onMessageReceived) {
     return () => {
       client.deactivate();
       clientRef.current = null;
+      onConnectionChangeRef.current?.(false);
     };
   }, [userName]);
 

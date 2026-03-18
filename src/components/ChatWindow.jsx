@@ -83,6 +83,7 @@ function messageKey(message) {
 function ChatWindow({ currentUser, selectedUser }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [draft, setDraft] = useState("");
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const endOfMessagesRef = useRef(null);
   const selectedUserRef = useRef(selectedUser);
 
@@ -162,6 +163,21 @@ function ChatWindow({ currentUser, selectedUser }) {
     };
   }, [currentUser, loadConversation, selectedUser]);
 
+
+  useEffect(() => {
+    if (!selectedUser || !currentUser || isSocketConnected) {
+      return;
+    }
+
+    const fallbackId = window.setInterval(() => {
+      loadConversation();
+    }, 4000);
+
+    return () => {
+      window.clearInterval(fallbackId);
+    };
+  }, [currentUser, isSocketConnected, loadConversation, selectedUser]);
+
   const onMessageReceived = useCallback(
     (incoming) => {
       const message = normalizeMessage(incoming);
@@ -187,7 +203,7 @@ function ChatWindow({ currentUser, selectedUser }) {
     [appendMessage, currentUser, loadConversation],
   );
 
-  useChatSocket(currentUser, onMessageReceived);
+  useChatSocket(currentUser, onMessageReceived, setIsSocketConnected);
 
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
