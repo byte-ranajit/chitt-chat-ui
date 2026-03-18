@@ -43,6 +43,7 @@ export const createStompClient = ({
   subscribeDestination,
   connectHeaders = {},
   onConnect,
+  onConnectionChange,
   onMessage,
   onError,
   reconnectDelay = 3000,
@@ -68,11 +69,17 @@ export const createStompClient = ({
     socket.send(JSON.stringify([frame]));
   };
 
+  const setConnected = (value) => {
+    if (connected === value) return;
+    connected = value;
+    onConnectionChange?.(connected);
+  };
+
   const handleStompFrame = (rawFrame) => {
     const frame = parseFrame(rawFrame);
 
     if (frame.command === "CONNECTED") {
-      connected = true;
+      setConnected(true);
 
       sendSockJsPayload(
         buildFrame("SUBSCRIBE", {
@@ -99,10 +106,8 @@ export const createStompClient = ({
     }
   };
 
-  const connect = async () => {
+  const connect = () => {
     try {
-      await fetch(`${endpoint}/info?t=${Date.now()}`);
-
       socket = new WebSocket(createSockJsUrl(endpoint));
 
       socket.onmessage = (event) => {
@@ -114,10 +119,19 @@ export const createStompClient = ({
             buildFrame("CONNECT", {
               "accept-version": "1.2,1.1,1.0",
               "heart-beat": "10000,10000",
-              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              ...(authToken
+                ? {
+                    Authorization: `Bearer ${authToken}`,
+                    authorization: `Bearer ${authToken}`,
+                  }
+                : {}),
               ...connectHeaders,
             }),
           );
+          return;
+        }
+
+        if (payload === "h") {
           return;
         }
 
@@ -133,7 +147,7 @@ export const createStompClient = ({
         }
 
         if (payload.startsWith("c")) {
-          connected = false;
+          setConnected(false);
           onError?.(new Error("SockJS connection closed by server"));
         }
       };
@@ -143,10 +157,11 @@ export const createStompClient = ({
       };
 
       socket.onclose = () => {
-        connected = false;
+        setConnected(false);
         scheduleReconnect();
       };
     } catch (error) {
+      setConnected(false);
       onError?.(error);
       scheduleReconnect();
     }
@@ -185,6 +200,7 @@ export const createStompClient = ({
     }
 
     socket?.close();
+    setConnected(false);
   };
 
   connect();
@@ -192,5 +208,6 @@ export const createStompClient = ({
   return {
     disconnect,
     send,
+    isConnected: () => connected,
   };
 };

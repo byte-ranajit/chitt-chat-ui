@@ -38,6 +38,7 @@ const normalizeConversation = (conversation, currentUserName) =>
 
 function ChatWindow({ selectedUser }) {
   const [messages, setMessages] = useState([]);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const stompClientRef = useRef(null);
 
   const currentUser = getUser();
@@ -112,6 +113,7 @@ function ChatWindow({ selectedUser }) {
     const client = createStompClient({
       endpoint: stompEndpoint,
       subscribeDestination,
+      onConnectionChange: setIsRealtimeConnected,
       onMessage: (payload) => {
         const message = payload?.data ?? payload?.message ?? payload;
 
@@ -130,10 +132,18 @@ function ChatWindow({ selectedUser }) {
       },
     });
 
+        fetchConversation();
+      },
+      onError: (error) => {
+        console.error("STOMP connection error", error);
+      },
+    });
+
     stompClientRef.current = client;
 
     return () => {
       stompClientRef.current = null;
+      setIsRealtimeConnected(false);
       client.disconnect();
     };
   }, [
@@ -141,7 +151,25 @@ function ChatWindow({ selectedUser }) {
     stompEndpoint,
     subscribeDestination,
     isMessageInConversation,
+    fetchConversation,
   ]);
+
+  useEffect(() => {
+    if (!selectedUserName || !currentUserName || isRealtimeConnected) {
+      return;
+    }
+
+    const pollIntervalMs =
+      Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
+
+    const intervalId = setInterval(() => {
+      fetchConversation();
+    }, pollIntervalMs);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isRealtimeConnected, selectedUserName, currentUserName, fetchConversation]);
 
   if (!selectedUser) {
     return (
