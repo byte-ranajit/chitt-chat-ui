@@ -3,13 +3,37 @@ import useChatSocket from "../api/useChatSocket";
 import authApi from "../api/authApi";
 import { sendMessage as persistMessage } from "../api/chatApi";
 
+function pickFirst(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
 function normalizeMessage(message) {
   return {
     ...message,
-    sender: message.sender ?? "",
-    receiver: message.receiver ?? "",
-    content: message.content ?? "",
+    id: pickFirst(message.id, message.messageId),
+    sender: pickFirst(
+      message.sender,
+      message.senderUserName,
+      message.senderUsername,
+      message.from,
+    ) ?? "",
+    receiver: pickFirst(
+      message.receiver,
+      message.receiverUserName,
+      message.receiverUsername,
+      message.to,
+    ) ?? "",
+    content: pickFirst(message.content, message.message, message.text) ?? "",
+    createdAt: pickFirst(message.createdAt, message.timestamp),
   };
+}
+
+function normalizedUser(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function sameUser(a, b) {
+  return normalizedUser(a) !== "" && normalizedUser(a) === normalizedUser(b);
 }
 
 function messageKey(message) {
@@ -17,7 +41,7 @@ function messageKey(message) {
     return `id:${message.id}`;
   }
 
-  return `tmp:${message.sender}:${message.receiver}:${message.content}:${message.createdAt ?? ""}`;
+  return `tmp:${normalizedUser(message.sender)}:${normalizedUser(message.receiver)}:${message.content}:${message.createdAt ?? ""}`;
 }
 
 function ChatWindow({ currentUser, selectedUser }) {
@@ -96,18 +120,27 @@ function ChatWindow({ currentUser, selectedUser }) {
   }, [currentUser, loadConversation, selectedUser]);
 
   const onMessageReceived = useCallback(
-    (message) => {
+    (incoming) => {
       const activeUser = selectedUserRef.current;
 
       if (!activeUser) {
         return;
       }
 
-      const isForActiveConversation =
-        (message.sender === activeUser && message.receiver === currentUser) ||
-        (message.sender === currentUser && message.receiver === activeUser);
+      const message = normalizeMessage(incoming);
 
-      if (isForActiveConversation) {
+      const isIncomingForActiveConversation =
+        sameUser(message.sender, activeUser) &&
+        sameUser(message.receiver, currentUser);
+
+      const isOwnMessageEchoForActiveConversation =
+        sameUser(message.sender, currentUser) &&
+        sameUser(message.receiver, activeUser);
+
+      if (
+        isIncomingForActiveConversation ||
+        isOwnMessageEchoForActiveConversation
+      ) {
         appendMessage(activeUser, message);
       }
     },
@@ -152,11 +185,11 @@ function ChatWindow({ currentUser, selectedUser }) {
         {messages.map((msg, i) => (
           <div
             key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}
-            className={`mb-2 flex ${msg.sender === currentUser ? "justify-end" : "justify-start"}`}
+            className={`mb-2 flex ${sameUser(msg.sender, currentUser) ? "justify-end" : "justify-start"}`}
           >
             <div
               className={`max-w-[75%] rounded px-3 py-2 ${
-                msg.sender === currentUser ? "bg-green-600" : "bg-gray-700"
+                sameUser(msg.sender, currentUser) ? "bg-green-600" : "bg-gray-700"
               }`}
             >
               <p className="text-xs text-gray-200">{msg.sender}</p>

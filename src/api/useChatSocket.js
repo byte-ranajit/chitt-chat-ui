@@ -50,8 +50,16 @@ export default function useChatSocket(userName, onMessageReceived) {
           onMessageReceivedRef.current?.(body);
         };
 
-        client.subscribe("/user/queue/messages", handleIncoming);
-        client.subscribe(`/user/${userName}/queue/messages`, handleIncoming);
+        const subscriptionDestinations = [
+          "/user/queue/messages",
+          `/user/${userName}/queue/messages`,
+          "/topic/messages",
+          "/topic/public",
+        ];
+
+        subscriptionDestinations.forEach((destination) => {
+          client.subscribe(destination, handleIncoming);
+        });
       },
 
       onStompError: (frame) => {
