@@ -1,56 +1,38 @@
+import SockJS from "sockjs-client";
 import { useEffect, useRef } from "react";
+import { Client } from "@stomp/stompjs";
 
-export default function useChatSocket(username, onMessageReceived) {
-  const stompClient = useRef(null);
+export default function useChatSocket(userName, onMessageReceived) {
+  const clientRef = useRef(null);
 
   useEffect(() => {
-    if (!username) {
-      return undefined;
-    }
+    const socket = new SockJS("http://localhost:8080/chat");
 
-    let isCancelled = false;
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
 
-    const connect = async () => {
-      try {
-        const sockJsModuleName = "sockjs-client";
-        const stompModuleName = "stompjs";
+      onConnect: () => {
+        console.log("Connected to WebSocket");
 
-        const [{ default: SockJS }, stompModule] = await Promise.all([
-          import(/* @vite-ignore */ sockJsModuleName),
-          import(/* @vite-ignore */ stompModuleName),
-        ]);
-
-        if (isCancelled) {
-          return;
-        }
-
-        const Stomp = stompModule.default ?? stompModule;
-        const socket = new SockJS("http://localhost:8080/chat");
-        const client = Stomp.over(socket);
-
-        stompClient.current = client;
-
-        client.connect({}, () => {
-          client.subscribe(`/user/${username}/queue/messages`, (msg) => {
-            const message = JSON.parse(msg.body);
-            onMessageReceived(message);
-          });
+        client.subscribe(`/user/${userName}/queue/messages`, (message) => {
+          const body = JSON.parse(message.body);
+          onMessageReceived(body);
         });
-      } catch (error) {
-        console.error(
-          "Unable to initialize chat socket. Ensure dependencies are installed.",
-          error,
-        );
-      }
-    };
+      },
 
-    connect();
+      onStompError: (frame) => {
+        console.error("Broker error:", frame);
+      },
+    });
+
+    client.activate();
+    clientRef.current = client;
 
     return () => {
-      isCancelled = true;
-      stompClient.current?.disconnect?.();
+      client.deactivate();
     };
-  }, [username, onMessageReceived]);
+  }, [userName]);
 
-  return stompClient;
+  return clientRef;
 }
