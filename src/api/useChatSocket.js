@@ -4,8 +4,17 @@ import { Client } from "@stomp/stompjs";
 
 export default function useChatSocket(userName, onMessageReceived) {
   const clientRef = useRef(null);
+  const onMessageReceivedRef = useRef(onMessageReceived);
 
   useEffect(() => {
+    onMessageReceivedRef.current = onMessageReceived;
+  }, [onMessageReceived]);
+
+  useEffect(() => {
+    if (!userName) {
+      return undefined;
+    }
+
     const socket = new SockJS("http://localhost:8080/chat");
 
     const client = new Client({
@@ -17,7 +26,7 @@ export default function useChatSocket(userName, onMessageReceived) {
 
         client.subscribe(`/user/${userName}/queue/messages`, (message) => {
           const body = JSON.parse(message.body);
-          onMessageReceived(body);
+          onMessageReceivedRef.current?.(body);
         });
       },
 
