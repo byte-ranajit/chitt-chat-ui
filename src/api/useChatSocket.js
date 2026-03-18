@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client/dist/sockjs";
 import { getToken } from "../auth/AuthUtils";
 
-const DEFAULT_WS_URL = "ws://localhost:8080/chat/websocket";
+const DEFAULT_HTTP_URL = "http://localhost:8080";
+const DEFAULT_SOCKJS_PATH = "/chat";
 
 function parseSocketMessage(message) {
   try {
@@ -26,11 +28,15 @@ export default function useChatSocket(userName, onMessageReceived) {
       return undefined;
     }
 
+    const baseHttpUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_HTTP_URL;
+    const sockJsPath = import.meta.env.VITE_SOCKJS_PATH ?? DEFAULT_SOCKJS_PATH;
     const token = getToken();
 
     const client = new Client({
-      brokerURL: import.meta.env.VITE_WS_URL ?? DEFAULT_WS_URL,
+      webSocketFactory: () => new SockJS(`${baseHttpUrl}${sockJsPath}`),
       reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
       connectHeaders: token
         ? {
             Authorization: `Bearer ${token}`,
@@ -38,8 +44,6 @@ export default function useChatSocket(userName, onMessageReceived) {
         : {},
 
       onConnect: () => {
-        console.log("Connected to WebSocket");
-
         const handleIncoming = (message) => {
           const body = parseSocketMessage(message);
 
@@ -50,16 +54,7 @@ export default function useChatSocket(userName, onMessageReceived) {
           onMessageReceivedRef.current?.(body);
         };
 
-        const subscriptionDestinations = [
-          "/user/queue/messages",
-          `/user/${userName}/queue/messages`,
-          "/topic/messages",
-          "/topic/public",
-        ];
-
-        subscriptionDestinations.forEach((destination) => {
-          client.subscribe(destination, handleIncoming);
-        });
+        client.subscribe("/user/queue/messages", handleIncoming);
       },
 
       onStompError: (frame) => {
@@ -69,6 +64,10 @@ export default function useChatSocket(userName, onMessageReceived) {
       onWebSocketError: (event) => {
         console.error("WebSocket connection error:", event);
       },
+
+      onDisconnect: () => {
+        console.log("Disconnected from WebSocket");
+      },
     });
 
     client.activate();
@@ -76,6 +75,7 @@ export default function useChatSocket(userName, onMessageReceived) {
 
     return () => {
       client.deactivate();
+      clientRef.current = null;
     };
   }, [userName]);
 
