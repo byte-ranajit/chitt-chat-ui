@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
+import authApi from "../api/authApi";
+import { sendMessage as persistMessage } from "../api/chatApi";
 
 function ChatWindow({ currentUser, selectedUser }) {
   const [messages, setMessages] = useState([]);
@@ -10,40 +12,53 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
-    fetch(
-      `http://localhost:8080/messages/conversation?sender=${currentUser}&receiver=${selectedUser}`,
-    )
-      .then((res) => res.json())
-      .then(setMessages)
+    authApi
+      .get(
+        `/messages/conversation?sender=${encodeURIComponent(currentUser)}&receiver=${encodeURIComponent(selectedUser)}`,
+      )
+      .then((res) => setMessages(Array.isArray(res.data) ? res.data : []))
       .catch((error) => {
         console.error("Unable to load messages", error);
         setMessages([]);
       });
   }, [currentUser, selectedUser]);
 
-  const stompClient = useChatSocket(currentUser, (message) => {
-    if (
-      message.sender === selectedUser ||
-      message.receiver === selectedUser
-    ) {
-      setMessages((prev) => [...prev, message]);
+  useChatSocket(currentUser, (message) => {
+    if (message.sender === selectedUser || message.receiver === selectedUser) {
+      setMessages((prev) => {
+        const alreadyExists = prev.some(
+          (msg) =>
+            msg.id &&
+            message.id &&
+            String(msg.id) === String(message.id),
+        );
+
+        if (alreadyExists) {
+          return prev;
+        }
+
+        return [...prev, message];
+      });
     }
   });
 
-  const sendMessage = (content) => {
+  const sendMessage = async (content) => {
     if (!content || !selectedUser || !currentUser) {
       return;
     }
 
-    const message = {
+    const messagePayload = {
       sender: currentUser,
       receiver: selectedUser,
       content,
     };
 
-    setMessages((prev) => [...prev, { ...message, isMe: true }]);
-
-    stompClient.current?.send?.("/app/chat.send", {}, JSON.stringify(message));
+    try {
+      const savedMessage = await persistMessage(messagePayload);
+      setMessages((prev) => [...prev, savedMessage ?? messagePayload]);
+    } catch (error) {
+      console.error("Unable to send message", error);
+    }
   };
 
   return (
@@ -54,7 +69,7 @@ function ChatWindow({ currentUser, selectedUser }) {
 
       <div className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3">
         {messages.map((msg, i) => (
-          <div key={i}>
+          <div key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}>
             <b>{msg.sender}:</b> {msg.content}
           </div>
         ))}
