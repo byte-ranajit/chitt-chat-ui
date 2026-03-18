@@ -1,17 +1,21 @@
+import { useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
-import { useState } from "react";
+import { getUserName } from "../auth/AuthUtils";
 
 function Chat() {
+  const [selectedUser, setSelectedUser] = useState(null);
+  const currentUserName = useMemo(() => getUserName(), []);
 
-    const [selectedUser, setSelectedUser] = useState(null);
-
-    return (
-        <div className="flex h-screen bg-gray-900 text-white">
-            <Sidebar onSelectUser={setSelectedUser} />
-            <ChatWindow selectedUser={selectedUser} />
-        </div>
-    );
+  return (
+    <div className="flex h-screen bg-gray-900 text-white">
+      <Sidebar onSelectUser={setSelectedUser} />
+      <ChatWindow
+        currentUser={currentUserName}
+        selectedUser={selectedUser?.userName ?? null}
+      />
+    </div>
+  );
 }
 
 export default Chat;
