@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getUser } from "../auth/AuthUtils.js";
 import { getUsers } from "../api/chatApi";
 
-function Sidebar({ onSelectUser }) {
+function Sidebar({ onSelectUser, selectedUserName, currentUserName }) {
   const [users, setUsers] = useState([]);
+
   useEffect(() => {
     const currentUser = getUser();
 
     const loadUsers = async () => {
       try {
         const data = await getUsers();
-        console.log("Fetched users:", data);
         const normalizedUsers = Array.isArray(data)
           ? data
           : Array.isArray(data?.data)
@@ -33,38 +33,57 @@ function Sidebar({ onSelectUser }) {
     loadUsers();
   }, []);
 
+  const sortedUsers = useMemo(
+    () => [...users].sort((a, b) => a.userName.localeCompare(b.userName)),
+    [users],
+  );
+
   return (
-    <div className="w-1/4 bg-gray-800 border-r border-gray-700">
-      <div className="p-4 text-lg font-semibold border-b border-gray-700">
-        Chats
+    <aside className="hidden w-full max-w-sm flex-col border-r border-white/10 bg-slate-950/60 p-5 md:flex">
+      <header className="mb-4 rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+        <p className="text-xs uppercase tracking-wider text-slate-400">Signed in as</p>
+        <h1 className="mt-1 text-lg font-semibold text-white">{currentUserName || "Guest"}</h1>
+      </header>
+
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+          Conversations
+        </h2>
+        <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-200">
+          {sortedUsers.length}
+        </span>
       </div>
 
-      <div className="overflow-y-auto h-full">
-        {users.map((user) => (
-          <div
-            key={user.id ?? user.userName}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelectUser(user)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                onSelectUser(user);
-              }
-            }}
-            className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-700"
-          >
-            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-              {user.userName?.[0]?.toUpperCase() ?? "U"}
-            </div>
+      <div className="scrollbar-thin flex-1 space-y-2 overflow-y-auto pr-1">
+        {sortedUsers.map((user) => {
+          const isActive = selectedUserName === user.userName;
 
-            <div>
-              <div className="font-medium">{user.userName}</div>
-              <div className="text-sm text-gray-400">Tap to chat</div>
-            </div>
-          </div>
-        ))}
+          return (
+            <button
+              key={user.id ?? user.userName}
+              type="button"
+              onClick={() => onSelectUser(user)}
+              className={`w-full rounded-xl border px-3 py-2 text-left transition ${
+                isActive
+                  ? "border-indigo-400/60 bg-indigo-500/20"
+                  : "border-transparent bg-slate-900/60 hover:border-white/10 hover:bg-slate-800"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-cyan-300 text-sm font-bold text-slate-900">
+                  {user.userName?.[0]?.toUpperCase() ?? "U"}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-slate-100">{user.userName}</p>
+                  <p className="text-xs text-slate-400">Click to open chat</p>
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </aside>
   );
 }
 
