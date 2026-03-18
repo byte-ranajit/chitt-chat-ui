@@ -1,151 +1,75 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getUser, getUserName } from "../auth/AuthUtils.js";
-import { getInbox } from "../api/chatApi.js";
-import MessageBubble from "./MessageBubble.jsx";
-import ChatInput from "./ChatInput.jsx";
+import { useEffect, useState } from "react";
+import useChatSocket from "../api/useChatSocket";
 
-const getMessageKey = (msg) =>
-  msg.id ??
-  [msg.sender, msg.receiver, msg.content, msg.createdAt ?? msg.timestamp].join(
-    "|",
-  );
-
-const sortByDateOrId = (a, b) => {
-  const dateA = Date.parse(a.createdAt ?? a.timestamp ?? "");
-  const dateB = Date.parse(b.createdAt ?? b.timestamp ?? "");
-
-  if (!Number.isNaN(dateA) && !Number.isNaN(dateB)) {
-    return dateA - dateB;
-  }
-
-  if (typeof a.id === "number" && typeof b.id === "number") {
-    return a.id - b.id;
-  }
-
-  return 0;
-};
-
-const normalizeConversation = (conversation, currentUserName) =>
-  Array.from(
-    new Map(conversation.map((msg) => [getMessageKey(msg), msg])).values(),
-  )
-    .sort(sortByDateOrId)
-    .map((msg) => ({
-      ...msg,
-      isMe: msg.sender === currentUserName,
-    }));
-
-function ChatWindow({ selectedUser }) {
+function ChatWindow({ currentUser, selectedUser }) {
   const [messages, setMessages] = useState([]);
-  const bottomRef = useRef(null);
 
-  const currentUser = getUser();
-  const currentUserName = getUserName(currentUser);
-  const selectedUserName = selectedUser?.userName ?? selectedUser?.userName;
-
-  const fetchConversation = useCallback(async () => {
-    if (!selectedUserName || !currentUserName) {
+  useEffect(() => {
+    if (!selectedUser || !currentUser) {
       setMessages([]);
       return;
     }
 
-    const [currentUserInbox, selectedUserInbox] = await Promise.all([
-      getInbox(currentUserName),
-      getInbox(selectedUserName),
-    ]);
+    fetch(
+      `http://localhost:8080/messages/conversation?sender=${currentUser}&receiver=${selectedUser}`,
+    )
+      .then((res) => res.json())
+      .then(setMessages)
+      .catch((error) => {
+        console.error("Unable to load messages", error);
+        setMessages([]);
+      });
+  }, [currentUser, selectedUser]);
 
-    const conversation = [...currentUserInbox, ...selectedUserInbox].filter(
-      (msg) =>
-        (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
-        (msg.receiver === currentUserName && msg.sender === selectedUserName),
-    );
+  const stompClient = useChatSocket(currentUser, (message) => {
+    if (
+      message.sender === selectedUser ||
+      message.receiver === selectedUser
+    ) {
+      setMessages((prev) => [...prev, message]);
+    }
+  });
 
-    setMessages(normalizeConversation(conversation, currentUserName));
-  }, [selectedUserName, currentUserName]);
+  const sendMessage = (content) => {
+    if (!content || !selectedUser || !currentUser) {
+      return;
+    }
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      fetchConversation();
-    });
-  }, [fetchConversation]);
-
-  useEffect(() => {
-    if (!selectedUserName || !currentUserName) return;
-
-    const pollIntervalMs = Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
-
-    const intervalId = setInterval(() => {
-      fetchConversation();
-    }, pollIntervalMs);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [fetchConversation, selectedUserName, currentUserName]);
-
-  useEffect(() => {
-    if (!currentUserName) return;
-
-    const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
-    const socket = new WebSocket(`${wsUrl}/messages/${currentUserName}`);
-
-    socket.onmessage = (event) => {
-      if (!selectedUserName) return;
-
-      try {
-        const payload = JSON.parse(event.data);
-        const message = payload?.data ?? payload?.message ?? payload;
-
-        const belongsToOpenConversation =
-          (message.sender === currentUserName &&
-            message.receiver === selectedUserName) ||
-          (message.receiver === currentUserName &&
-            message.sender === selectedUserName);
-
-        if (belongsToOpenConversation) {
-          setMessages((prev) =>
-            normalizeConversation([...prev, message], currentUserName),
-          );
-        }
-
-        fetchConversation();
-      } catch (error) {
-        console.error("Unable to parse incoming websocket payload", error);
-        fetchConversation();
-      }
+    const message = {
+      sender: currentUser,
+      receiver: selectedUser,
+      content,
     };
 
-    socket.onerror = (error) => {
-      console.error("WebSocket connection error", error);
-    };
+    setMessages((prev) => [...prev, { ...message, isMe: true }]);
 
-    return () => {
-      socket.close();
-    };
-  }, [currentUserName, selectedUserName, fetchConversation]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, selectedUserName]);
-
-  if (!selectedUser) {
-    return (
-      <div className="w-3/4 flex items-center justify-center">Select chat</div>
-    );
-  }
+    stompClient.current?.send?.("/app/chat.send", {}, JSON.stringify(message));
+  };
 
   return (
-    <div className="w-3/4 flex flex-col">
-      <div className="p-4 bg-gray-800 border-b">{selectedUserName}</div>
+    <div className="flex-1 p-4">
+      <h3 className="mb-3 text-lg font-semibold">
+        {selectedUser ? `Chat with ${selectedUser}` : "Select a user to start"}
+      </h3>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
-          <MessageBubble key={getMessageKey(msg)} message={msg} />
+      <div className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3">
+        {messages.map((msg, i) => (
+          <div key={i}>
+            <b>{msg.sender}:</b> {msg.content}
+          </div>
         ))}
-        <div ref={bottomRef} />
       </div>
 
-      <ChatInput selectedUser={selectedUser} setMessages={setMessages} />
+      <input
+        className="w-full rounded border border-gray-700 bg-gray-800 p-2"
+        placeholder="Type message..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            sendMessage(e.target.value.trim());
+            e.target.value = "";
+          }
+        }}
+      />
     </div>
   );
 }
