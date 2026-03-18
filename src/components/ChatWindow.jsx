@@ -7,23 +7,55 @@ function pickFirst(...values) {
   return values.find((value) => value !== undefined && value !== null);
 }
 
+function asUserName(value) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value && typeof value === "object") {
+    return (
+      pickFirst(
+        value.userName,
+        value.username,
+        value.name,
+        value.sub,
+        value.preferred_username,
+      ) ?? ""
+    );
+  }
+
+  return "";
+}
+
 function normalizeMessage(message) {
   return {
     ...message,
     id: pickFirst(message.id, message.messageId),
-    sender: pickFirst(
-      message.sender,
-      message.senderUserName,
-      message.senderUsername,
-      message.from,
-    ) ?? "",
-    receiver: pickFirst(
-      message.receiver,
-      message.receiverUserName,
-      message.receiverUsername,
-      message.to,
-    ) ?? "",
-    content: pickFirst(message.content, message.message, message.text) ?? "",
+    sender: asUserName(
+      pickFirst(
+        message.sender,
+        message.senderUser,
+        message.senderUserName,
+        message.senderUsername,
+        message.from,
+      ),
+    ),
+    receiver: asUserName(
+      pickFirst(
+        message.receiver,
+        message.receiverUser,
+        message.receiverUserName,
+        message.receiverUsername,
+        message.to,
+      ),
+    ),
+    content:
+      pickFirst(
+        message.content,
+        message.message,
+        message.text,
+        message.messageContent,
+      ) ?? "",
     createdAt: pickFirst(message.createdAt, message.timestamp),
   };
 }
