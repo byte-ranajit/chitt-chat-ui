@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getUser } from "../auth/AuthUtils.js";
 import { getUsers } from "../api/chatApi";
 
-function Sidebar({ onSelectUser, selectedUserName, currentUserName }) {
+function Sidebar({ onSelectUser, selectedUserName }) {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
@@ -41,8 +41,8 @@ function Sidebar({ onSelectUser, selectedUserName, currentUserName }) {
   return (
     <aside className="hidden w-full max-w-sm flex-col border-r border-white/10 bg-slate-950/60 p-5 md:flex">
       <header className="mb-4 rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-        <p className="text-xs uppercase tracking-wider text-slate-400">Signed in as</p>
-        <h1 className="mt-1 text-lg font-semibold text-white">{currentUserName || "Guest"}</h1>
+        <h1 className="text-lg font-semibold text-white">Chats</h1>
+        <p className="mt-1 text-xs text-slate-400">Pick a person to start a conversation.</p>
       </header>
 
       <div className="mb-3 flex items-center justify-between px-1">

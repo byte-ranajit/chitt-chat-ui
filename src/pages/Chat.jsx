@@ -31,7 +31,6 @@ function Chat() {
         <Sidebar
           onSelectUser={setSelectedUser}
           selectedUserName={selectedUser?.userName ?? null}
-          currentUserName={currentUserName}
         />
         <ChatWindow
           currentUser={currentUserName}
