@@ -60,6 +60,8 @@ function ChatInput({
 
       onMessageActivity?.(normalizedResponse);
 
+      onMessageActivity?.(res);
+
       setMessages((prev) => [
         ...prev,
         {
