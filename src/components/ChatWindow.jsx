@@ -84,8 +84,13 @@ function ChatWindow({ currentUser, selectedUser }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [draft, setDraft] = useState("");
   const endOfMessagesRef = useRef(null);
+  const selectedUserRef = useRef(selectedUser);
 
   const selectedUserKey = userKey(selectedUser);
+
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   const messages = useMemo(() => {
     if (!selectedUserKey) {
@@ -161,23 +166,25 @@ function ChatWindow({ currentUser, selectedUser }) {
     (incoming) => {
       const message = normalizeMessage(incoming);
 
-      if (!message.content) {
-        return;
-      }
-
       const sentByCurrentUser = sameUser(message.sender, currentUser);
       const receivedByCurrentUser = sameUser(message.receiver, currentUser);
 
-      if (sentByCurrentUser) {
+      if (sentByCurrentUser && message.receiver) {
         appendMessage(message.receiver, message);
         return;
       }
 
-      if (receivedByCurrentUser) {
+      if (receivedByCurrentUser && message.sender) {
         appendMessage(message.sender, message);
+        return;
+      }
+
+      // Fallback: if we cannot confidently map payload fields, refresh active chat once.
+      if (selectedUserRef.current) {
+        loadConversation();
       }
     },
-    [appendMessage, currentUser],
+    [appendMessage, currentUser, loadConversation],
   );
 
   useChatSocket(currentUser, onMessageReceived);
