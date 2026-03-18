@@ -20,6 +20,21 @@ function messageKey(message) {
   return `tmp:${message.sender}:${message.receiver}:${message.content}:${message.createdAt ?? ""}`;
 }
 
+function mergeMessages(existing, incoming) {
+  const merged = [...existing];
+  const existingKeys = new Set(existing.map(messageKey));
+
+  incoming.forEach((msg) => {
+    const key = messageKey(msg);
+    if (!existingKeys.has(key)) {
+      merged.push(msg);
+      existingKeys.add(key);
+    }
+  });
+
+  return merged;
+}
+
 function ChatWindow({ currentUser, selectedUser }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [draft, setDraft] = useState("");
@@ -58,29 +73,52 @@ function ChatWindow({ currentUser, selectedUser }) {
     });
   }, []);
 
+  const loadConversation = useCallback(async () => {
+    if (!selectedUser || !currentUser) {
+      return;
+    }
+
+    try {
+      const res = await authApi.get(
+        `/messages/conversation?sender=${encodeURIComponent(currentUser)}&receiver=${encodeURIComponent(selectedUser)}`,
+      );
+
+      const loadedMessages = Array.isArray(res.data)
+        ? res.data.map(normalizeMessage)
+        : [];
+
+      setMessagesByUser((prev) => {
+        const existing = prev[selectedUser] ?? [];
+        const mergedConversation = mergeMessages(existing, loadedMessages);
+
+        return {
+          ...prev,
+          [selectedUser]: mergedConversation,
+        };
+      });
+    } catch (error) {
+      console.error("Unable to load messages", error);
+    }
+  }, [currentUser, selectedUser]);
+
   useEffect(() => {
     if (!selectedUser || !currentUser) {
       return;
     }
 
-    authApi
-      .get(
-        `/messages/conversation?sender=${encodeURIComponent(currentUser)}&receiver=${encodeURIComponent(selectedUser)}`,
-      )
-      .then((res) => {
-        const loadedMessages = Array.isArray(res.data)
-          ? res.data.map(normalizeMessage)
-          : [];
+    const initialLoadId = window.setTimeout(() => {
+      loadConversation();
+    }, 0);
 
-        setMessagesByUser((prev) => ({
-          ...prev,
-          [selectedUser]: loadedMessages,
-        }));
-      })
-      .catch((error) => {
-        console.error("Unable to load messages", error);
-      });
-  }, [currentUser, selectedUser]);
+    const intervalId = window.setInterval(() => {
+      loadConversation();
+    }, 2000);
+
+    return () => {
+      window.clearTimeout(initialLoadId);
+      window.clearInterval(intervalId);
+    };
+  }, [currentUser, loadConversation, selectedUser]);
 
   const onMessageReceived = useCallback(
     (message) => {
