@@ -1,51 +1,26 @@
-import { useEffect, useState } from "react";;
+import { useEffect, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
-const getMessageKey = (msg) =>
-  msg.id ??
-  [msg.sender, msg.receiver, msg.content, msg.createdAt ?? msg.timestamp].join(
-    "|",
-  );
-
-const sortByDateOrId = (a, b) => {
-  const dateA = Date.parse(a.createdAt ?? a.timestamp ?? "");
-  const dateB = Date.parse(b.createdAt ?? b.timestamp ?? "");
-
-  if (!Number.isNaN(dateA) && !Number.isNaN(dateB)) {
-    return dateA - dateB;
-  }
-
-  if (typeof a.id === "number" && typeof b.id === "number") {
-    return a.id - b.id;
-  }
-
-  return 0;
-};
-
-const normalizeConversation = (conversation, currentUserName) =>
-  Array.from(
-    new Map(conversation.map((msg) => [getMessageKey(msg), msg])).values(),
-  )
-    .sort(sortByDateOrId)
-    .map((msg) => ({
-      ...msg,
-      isMe: msg.sender === currentUserName,
-    }));
 
 function ChatWindow({ currentUser, selectedUser }) {
   const [messages, setMessages] = useState([]);
 
-  // ✅ Load only once
   useEffect(() => {
-    if (!selectedUser) return;
+    if (!selectedUser || !currentUser) {
+      setMessages([]);
+      return;
+    }
 
     fetch(
-      `http://localhost:8080/messages/conversation?sender=${currentUser}&receiver=${selectedUser}`
+      `http://localhost:8080/messages/conversation?sender=${currentUser}&receiver=${selectedUser}`,
     )
       .then((res) => res.json())
-      .then(setMessages);
-  }, [selectedUser]);
+      .then(setMessages)
+      .catch((error) => {
+        console.error("Unable to load messages", error);
+        setMessages([]);
+      });
+  }, [currentUser, selectedUser]);
 
-  // ✅ WebSocket
   const stompClient = useChatSocket(currentUser, (message) => {
     if (
       message.sender === selectedUser ||
@@ -55,29 +30,29 @@ function ChatWindow({ currentUser, selectedUser }) {
     }
   });
 
-  // ✅ Send message (Optimistic UI)
   const sendMessage = (content) => {
+    if (!content || !selectedUser || !currentUser) {
+      return;
+    }
+
     const message = {
       sender: currentUser,
       receiver: selectedUser,
       content,
     };
 
-    // instant UI update
     setMessages((prev) => [...prev, { ...message, isMe: true }]);
 
-    stompClient.current.send(
-      "/app/chat.send",
-      {},
-      JSON.stringify(message)
-    );
+    stompClient.current?.send?.("/app/chat.send", {}, JSON.stringify(message));
   };
 
   return (
-    <div>
-      <h3>{selectedUser}</h3>
+    <div className="flex-1 p-4">
+      <h3 className="mb-3 text-lg font-semibold">
+        {selectedUser ? `Chat with ${selectedUser}` : "Select a user to start"}
+      </h3>
 
-      <div style={{ height: "400px", overflowY: "auto" }}>
+      <div className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3">
         {messages.map((msg, i) => (
           <div key={i}>
             <b>{msg.sender}:</b> {msg.content}
@@ -86,10 +61,11 @@ function ChatWindow({ currentUser, selectedUser }) {
       </div>
 
       <input
+        className="w-full rounded border border-gray-700 bg-gray-800 p-2"
         placeholder="Type message..."
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            sendMessage(e.target.value);
+            sendMessage(e.target.value.trim());
             e.target.value = "";
           }
         }}
