@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getUser, getUserName } from "../auth/AuthUtils.js";
 import { getInbox } from "../api/chatApi.js";
 import MessageBubble from "./MessageBubble.jsx";
@@ -37,6 +37,7 @@ const normalizeConversation = (conversation, currentUserName) =>
 
 function ChatWindow({ selectedUser }) {
   const [messages, setMessages] = useState([]);
+  const bottomRef = useRef(null);
 
   const currentUser = getUser();
   const currentUserName = getUserName(currentUser);
@@ -123,6 +124,10 @@ function ChatWindow({ selectedUser }) {
     };
   }, [currentUserName, selectedUserName, fetchConversation]);
 
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, selectedUserName]);
+
   if (!selectedUser) {
     return (
       <div className="w-3/4 flex items-center justify-center">Select chat</div>
@@ -137,6 +142,7 @@ function ChatWindow({ selectedUser }) {
         {messages.map((msg) => (
           <MessageBubble key={getMessageKey(msg)} message={msg} />
         ))}
+        <div ref={bottomRef} />
       </div>
 
       <ChatInput selectedUser={selectedUser} setMessages={setMessages} />
