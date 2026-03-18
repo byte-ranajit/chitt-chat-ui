@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUser, getUserName } from "../auth/AuthUtils.js";
 import { getInbox } from "../api/chatApi.js";
+import { createStompClient } from "../services/stompClient.js";
 import MessageBubble from "./MessageBubble.jsx";
 import ChatInput from "./ChatInput.jsx";
 
@@ -37,10 +38,34 @@ const normalizeConversation = (conversation, currentUserName) =>
 
 function ChatWindow({ selectedUser }) {
   const [messages, setMessages] = useState([]);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const stompClientRef = useRef(null);
 
   const currentUser = getUser();
   const currentUserName = getUserName(currentUser);
   const selectedUserName = selectedUser?.userName ?? selectedUser?.userName;
+
+  const stompEndpoint = useMemo(
+    () => import.meta.env.VITE_STOMP_ENDPOINT ?? "http://localhost:8080/chat",
+    [],
+  );
+  const subscribeDestination = useMemo(
+    () =>
+      import.meta.env.VITE_STOMP_SUBSCRIBE_DESTINATION ?? "/user/queue/messages",
+    [],
+  );
+  const sendDestination = useMemo(
+    () => import.meta.env.VITE_STOMP_SEND_DESTINATION ?? "/app/chat.send",
+    [],
+  );
+
+  const isMessageInConversation = useCallback(
+    (msg) =>
+      Boolean(selectedUserName) &&
+      ((msg.sender === currentUserName && msg.receiver === selectedUserName) ||
+        (msg.receiver === currentUserName && msg.sender === selectedUserName)),
+    [selectedUserName, currentUserName],
+  );
 
   const fetchConversation = useCallback(async () => {
     if (!selectedUserName || !currentUserName) {
@@ -62,6 +87,20 @@ function ChatWindow({ selectedUser }) {
     setMessages(normalizeConversation(conversation, currentUserName));
   }, [selectedUserName, currentUserName]);
 
+  const sendRealtimeMessage = useCallback(
+    (message) => {
+      if (!stompClientRef.current) {
+        throw new Error("STOMP client is not initialized");
+      }
+
+      stompClientRef.current.send({
+        destination: sendDestination,
+        body: message,
+      });
+    },
+    [sendDestination],
+  );
+
   useEffect(() => {
     queueMicrotask(() => {
       fetchConversation();
@@ -69,9 +108,54 @@ function ChatWindow({ selectedUser }) {
   }, [fetchConversation]);
 
   useEffect(() => {
-    if (!selectedUserName || !currentUserName) return;
+    if (!currentUserName) return;
 
-    const pollIntervalMs = Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
+    const client = createStompClient({
+      endpoint: stompEndpoint,
+      subscribeDestination,
+      onConnectionChange: setIsRealtimeConnected,
+      onMessage: (payload) => {
+        const message = payload?.data ?? payload?.message ?? payload;
+
+        if (!message || typeof message !== "object") {
+          return;
+        }
+
+        if (isMessageInConversation(message)) {
+          setMessages((prev) =>
+            normalizeConversation([...prev, message], currentUserName),
+          );
+        }
+
+        fetchConversation();
+      },
+      onError: (error) => {
+        console.error("STOMP connection error", error);
+      },
+    });
+
+    stompClientRef.current = client;
+
+    return () => {
+      stompClientRef.current = null;
+      setIsRealtimeConnected(false);
+      client.disconnect();
+    };
+  }, [
+    currentUserName,
+    stompEndpoint,
+    subscribeDestination,
+    isMessageInConversation,
+    fetchConversation,
+  ]);
+
+  useEffect(() => {
+    if (!selectedUserName || !currentUserName || isRealtimeConnected) {
+      return;
+    }
+
+    const pollIntervalMs =
+      Number(import.meta.env.VITE_CHAT_POLL_INTERVAL_MS) || 2000;
 
     const intervalId = setInterval(() => {
       fetchConversation();
@@ -80,48 +164,7 @@ function ChatWindow({ selectedUser }) {
     return () => {
       clearInterval(intervalId);
     };
-  }, [fetchConversation, selectedUserName, currentUserName]);
-
-  useEffect(() => {
-    if (!currentUserName) return;
-
-    const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:8080/ws";
-    const socket = new WebSocket(`${wsUrl}/messages/${currentUserName}`);
-
-    socket.onmessage = (event) => {
-      if (!selectedUserName) return;
-
-      try {
-        const payload = JSON.parse(event.data);
-        const message = payload?.data ?? payload?.message ?? payload;
-
-        const belongsToOpenConversation =
-          (message.sender === currentUserName &&
-            message.receiver === selectedUserName) ||
-          (message.receiver === currentUserName &&
-            message.sender === selectedUserName);
-
-        if (belongsToOpenConversation) {
-          setMessages((prev) =>
-            normalizeConversation([...prev, message], currentUserName),
-          );
-        }
-
-        fetchConversation();
-      } catch (error) {
-        console.error("Unable to parse incoming websocket payload", error);
-        fetchConversation();
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error("WebSocket connection error", error);
-    };
-
-    return () => {
-      socket.close();
-    };
-  }, [currentUserName, selectedUserName, fetchConversation]);
+  }, [isRealtimeConnected, selectedUserName, currentUserName, fetchConversation]);
 
   if (!selectedUser) {
     return (
@@ -139,7 +182,11 @@ function ChatWindow({ selectedUser }) {
         ))}
       </div>
 
-      <ChatInput selectedUser={selectedUser} setMessages={setMessages} />
+      <ChatInput
+        selectedUser={selectedUser}
+        setMessages={setMessages}
+        sendRealtimeMessage={sendRealtimeMessage}
+      />
     </div>
   );
 }
