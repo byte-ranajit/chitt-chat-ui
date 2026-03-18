@@ -1,7 +1,8 @@
-import SockJS from "sockjs-client";
 import { useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import { getToken } from "../auth/AuthUtils";
+
+const DEFAULT_WS_URL = "ws://localhost:8080/chat/websocket";
 
 function parseSocketMessage(message) {
   try {
@@ -25,11 +26,10 @@ export default function useChatSocket(userName, onMessageReceived) {
       return undefined;
     }
 
-    const socket = new SockJS("http://localhost:8080/chat");
     const token = getToken();
 
     const client = new Client({
-      webSocketFactory: () => socket,
+      brokerURL: import.meta.env.VITE_WS_URL ?? DEFAULT_WS_URL,
       reconnectDelay: 5000,
       connectHeaders: token
         ? {
