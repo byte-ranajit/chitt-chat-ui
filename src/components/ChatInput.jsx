@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { getUser, getUserName } from "../auth/AuthUtils.js";
 import { sendMessage } from "../api/chatApi.js";
+import { normalizeMessage } from "../utils/messageUtils";
 
-function ChatInput({ selectedUser, setMessages, sendRealtimeMessage }) {
+function ChatInput({
+  selectedUser,
+  setMessages,
+  sendRealtimeMessage,
+  onMessageActivity,
+}) {
   const [text, setText] = useState("");
   const currentUser = getUser();
 
@@ -31,23 +37,33 @@ function ChatInput({ selectedUser, setMessages, sendRealtimeMessage }) {
     try {
       sendRealtimeMessage(newMsg);
 
+      const optimisticMessage = {
+        ...newMsg,
+        isMe: true,
+        timestamp: new Date().toISOString(),
+      };
+
+      onMessageActivity?.(optimisticMessage);
+
       setMessages((prev) => [
         ...prev,
-        {
-          ...newMsg,
-          isMe: true,
-          timestamp: new Date().toISOString(),
-        },
+        optimisticMessage,
       ]);
     } catch (stompError) {
       console.error("Realtime send failed, falling back to REST", stompError);
 
       const res = await sendMessage(newMsg);
+      const normalizedResponse = normalizeMessage(res) ?? {
+        ...newMsg,
+        timestamp: new Date().toISOString(),
+      };
+
+      onMessageActivity?.(normalizedResponse);
 
       setMessages((prev) => [
         ...prev,
         {
-          ...res,
+          ...normalizedResponse,
           isMe: true,
         },
       ]);

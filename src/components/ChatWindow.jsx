@@ -4,6 +4,7 @@ import { getInbox } from "../api/chatApi.js";
 import { createStompClient } from "../services/stompClient.js";
 import MessageBubble from "./MessageBubble.jsx";
 import ChatInput from "./ChatInput.jsx";
+import { normalizeMessage } from "../utils/messageUtils";
 
 const getMessageKey = (msg) =>
   msg.id ??
@@ -36,7 +37,21 @@ const normalizeConversation = (conversation, currentUserName) =>
       isMe: msg.sender === currentUserName,
     }));
 
-function ChatWindow({ selectedUser }) {
+const normalizeRealtimeMessage = (payload) => {
+  const rawMessage = payload?.data ?? payload?.message ?? payload;
+
+  if (typeof rawMessage === "string") {
+    try {
+      return normalizeMessage(JSON.parse(rawMessage));
+    } catch {
+      return null;
+    }
+  }
+
+  return normalizeMessage(rawMessage);
+};
+
+function ChatWindow({ selectedUser, onMessageActivity }) {
   const [messages, setMessages] = useState([]);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const stompClientRef = useRef(null);
@@ -78,11 +93,14 @@ function ChatWindow({ selectedUser }) {
       getInbox(selectedUserName),
     ]);
 
-    const conversation = [...currentUserInbox, ...selectedUserInbox].filter(
-      (msg) =>
-        (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
-        (msg.receiver === currentUserName && msg.sender === selectedUserName),
-    );
+    const conversation = [...currentUserInbox, ...selectedUserInbox]
+      .map(normalizeMessage)
+      .filter(Boolean)
+      .filter(
+        (msg) =>
+          (msg.sender === currentUserName && msg.receiver === selectedUserName) ||
+          (msg.receiver === currentUserName && msg.sender === selectedUserName),
+      );
 
     setMessages(normalizeConversation(conversation, currentUserName));
   }, [selectedUserName, currentUserName]);
@@ -118,11 +136,13 @@ function ChatWindow({ selectedUser }) {
         fetchConversation();
       },
       onMessage: (payload) => {
-        const message = payload?.data ?? payload?.message ?? payload;
+        const message = normalizeRealtimeMessage(payload);
 
         if (!message || typeof message !== "object") {
           return;
         }
+
+        onMessageActivity?.(message);
 
         if (isMessageInConversation(message)) {
           setMessages((prev) =>
@@ -148,6 +168,7 @@ function ChatWindow({ selectedUser }) {
     subscribeDestination,
     isMessageInConversation,
     fetchConversation,
+    onMessageActivity,
   ]);
 
   useEffect(() => {
@@ -187,6 +208,7 @@ function ChatWindow({ selectedUser }) {
         selectedUser={selectedUser}
         setMessages={setMessages}
         sendRealtimeMessage={sendRealtimeMessage}
+        onMessageActivity={onMessageActivity}
       />
     </div>
   );
