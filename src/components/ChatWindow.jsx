@@ -36,6 +36,20 @@ const normalizeConversation = (conversation, currentUserName) =>
       isMe: msg.sender === currentUserName,
     }));
 
+const normalizeRealtimeMessage = (payload) => {
+  const rawMessage = payload?.data ?? payload?.message ?? payload;
+
+  if (typeof rawMessage === "string") {
+    try {
+      return JSON.parse(rawMessage);
+    } catch {
+      return null;
+    }
+  }
+
+  return rawMessage;
+};
+
 function ChatWindow({ selectedUser, onMessageActivity }) {
   const [messages, setMessages] = useState([]);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
@@ -118,7 +132,7 @@ function ChatWindow({ selectedUser, onMessageActivity }) {
         fetchConversation();
       },
       onMessage: (payload) => {
-        const message = payload?.data ?? payload?.message ?? payload;
+        const message = normalizeRealtimeMessage(payload);
 
         if (!message || typeof message !== "object") {
           return;
