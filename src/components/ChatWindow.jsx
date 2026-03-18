@@ -20,21 +20,6 @@ function messageKey(message) {
   return `tmp:${message.sender}:${message.receiver}:${message.content}:${message.createdAt ?? ""}`;
 }
 
-function mergeMessages(existing, incoming) {
-  const merged = [...existing];
-  const existingKeys = new Set(existing.map(messageKey));
-
-  incoming.forEach((msg) => {
-    const key = messageKey(msg);
-    if (!existingKeys.has(key)) {
-      merged.push(msg);
-      existingKeys.add(key);
-    }
-  });
-
-  return merged;
-}
-
 function ChatWindow({ currentUser, selectedUser }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [draft, setDraft] = useState("");
@@ -87,15 +72,10 @@ function ChatWindow({ currentUser, selectedUser }) {
         ? res.data.map(normalizeMessage)
         : [];
 
-      setMessagesByUser((prev) => {
-        const existing = prev[selectedUser] ?? [];
-        const mergedConversation = mergeMessages(existing, loadedMessages);
-
-        return {
-          ...prev,
-          [selectedUser]: mergedConversation,
-        };
-      });
+      setMessagesByUser((prev) => ({
+        ...prev,
+        [selectedUser]: loadedMessages,
+      }));
     } catch (error) {
       console.error("Unable to load messages", error);
     }
@@ -110,13 +90,8 @@ function ChatWindow({ currentUser, selectedUser }) {
       loadConversation();
     }, 0);
 
-    const intervalId = window.setInterval(() => {
-      loadConversation();
-    }, 2000);
-
     return () => {
       window.clearTimeout(initialLoadId);
-      window.clearInterval(intervalId);
     };
   }, [currentUser, loadConversation, selectedUser]);
 

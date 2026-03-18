@@ -1,6 +1,7 @@
 import SockJS from "sockjs-client";
 import { useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
+import { getToken } from "../auth/AuthUtils";
 
 function parseSocketMessage(message) {
   try {
@@ -25,10 +26,16 @@ export default function useChatSocket(userName, onMessageReceived) {
     }
 
     const socket = new SockJS("http://localhost:8080/chat");
+    const token = getToken();
 
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
+      connectHeaders: token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {},
 
       onConnect: () => {
         console.log("Connected to WebSocket");
@@ -43,10 +50,7 @@ export default function useChatSocket(userName, onMessageReceived) {
           onMessageReceivedRef.current?.(body);
         };
 
-        // Standard Spring user destination mapping.
         client.subscribe("/user/queue/messages", handleIncoming);
-
-        // Fallback for backends that include username in the destination path.
         client.subscribe(`/user/${userName}/queue/messages`, handleIncoming);
       },
 
