@@ -114,6 +114,9 @@ function ChatWindow({ selectedUser }) {
       endpoint: stompEndpoint,
       subscribeDestination,
       onConnectionChange: setIsRealtimeConnected,
+      onConnect: () => {
+        fetchConversation();
+      },
       onMessage: (payload) => {
         const message = payload?.data ?? payload?.message ?? payload;
 
@@ -126,13 +129,6 @@ function ChatWindow({ selectedUser }) {
             normalizeConversation([...prev, message], currentUserName),
           );
         }
-      },
-      onError: (error) => {
-        console.error("STOMP connection error", error);
-      },
-    });
-
-        fetchConversation();
       },
       onError: (error) => {
         console.error("STOMP connection error", error);
