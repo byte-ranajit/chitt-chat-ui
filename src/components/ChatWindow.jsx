@@ -126,6 +126,11 @@ function ChatWindow({ selectedUser }) {
             normalizeConversation([...prev, message], currentUserName),
           );
         }
+      },
+      onError: (error) => {
+        console.error("STOMP connection error", error);
+      },
+    });
 
         fetchConversation();
       },
