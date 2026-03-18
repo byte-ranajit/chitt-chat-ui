@@ -36,7 +36,7 @@ const normalizeConversation = (conversation, currentUserName) =>
       isMe: msg.sender === currentUserName,
     }));
 
-function ChatWindow({ selectedUser }) {
+function ChatWindow({ selectedUser, onMessageActivity }) {
   const [messages, setMessages] = useState([]);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const stompClientRef = useRef(null);
@@ -124,6 +124,8 @@ function ChatWindow({ selectedUser }) {
           return;
         }
 
+        onMessageActivity?.(message);
+
         if (isMessageInConversation(message)) {
           setMessages((prev) =>
             normalizeConversation([...prev, message], currentUserName),
@@ -148,6 +150,7 @@ function ChatWindow({ selectedUser }) {
     subscribeDestination,
     isMessageInConversation,
     fetchConversation,
+    onMessageActivity,
   ]);
 
   useEffect(() => {
@@ -187,6 +190,7 @@ function ChatWindow({ selectedUser }) {
         selectedUser={selectedUser}
         setMessages={setMessages}
         sendRealtimeMessage={sendRealtimeMessage}
+        onMessageActivity={onMessageActivity}
       />
     </div>
   );
