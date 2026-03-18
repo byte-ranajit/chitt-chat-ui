@@ -1,28 +1,56 @@
-import SockJS from "sockjs-client";
-import Stomp from "stompjs";
 import { useEffect, useRef } from "react";
 
 export default function useChatSocket(username, onMessageReceived) {
   const stompClient = useRef(null);
 
   useEffect(() => {
-    const socket = new SockJS("http://localhost:8080/chat");
-    stompClient.current = Stomp.over(socket);
+    if (!username) {
+      return undefined;
+    }
 
-    stompClient.current.connect({}, () => {
-      stompClient.current.subscribe(
-        `/user/${username}/queue/messages`,
-        (msg) => {
-          const message = JSON.parse(msg.body);
-          onMessageReceived(message);
+    let isCancelled = false;
+
+    const connect = async () => {
+      try {
+        const sockJsModuleName = "sockjs-client";
+        const stompModuleName = "stompjs";
+
+        const [{ default: SockJS }, stompModule] = await Promise.all([
+          import(/* @vite-ignore */ sockJsModuleName),
+          import(/* @vite-ignore */ stompModuleName),
+        ]);
+
+        if (isCancelled) {
+          return;
         }
-      );
-    });
+
+        const Stomp = stompModule.default ?? stompModule;
+        const socket = new SockJS("http://localhost:8080/chat");
+        const client = Stomp.over(socket);
+
+        stompClient.current = client;
+
+        client.connect({}, () => {
+          client.subscribe(`/user/${username}/queue/messages`, (msg) => {
+            const message = JSON.parse(msg.body);
+            onMessageReceived(message);
+          });
+        });
+      } catch (error) {
+        console.error(
+          "Unable to initialize chat socket. Ensure dependencies are installed.",
+          error,
+        );
+      }
+    };
+
+    connect();
 
     return () => {
-      stompClient.current?.disconnect();
+      isCancelled = true;
+      stompClient.current?.disconnect?.();
     };
-  }, [username]);
+  }, [username, onMessageReceived]);
 
   return stompClient;
 }
