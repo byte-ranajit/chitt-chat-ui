@@ -64,8 +64,12 @@ function normalizedUser(value) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function userKey(value) {
+  return normalizedUser(value);
+}
+
 function sameUser(a, b) {
-  return normalizedUser(a) !== "" && normalizedUser(a) === normalizedUser(b);
+  return userKey(a) !== "" && userKey(a) === userKey(b);
 }
 
 function messageKey(message) {
@@ -73,32 +77,34 @@ function messageKey(message) {
     return `id:${message.id}`;
   }
 
-  return `tmp:${normalizedUser(message.sender)}:${normalizedUser(message.receiver)}:${message.content}:${message.createdAt ?? ""}`;
+  return `tmp:${userKey(message.sender)}:${userKey(message.receiver)}:${message.content}:${message.createdAt ?? ""}`;
 }
 
 function ChatWindow({ currentUser, selectedUser }) {
   const [messagesByUser, setMessagesByUser] = useState({});
   const [draft, setDraft] = useState("");
   const endOfMessagesRef = useRef(null);
-  const selectedUserRef = useRef(selectedUser);
+
+  const selectedUserKey = userKey(selectedUser);
 
   const messages = useMemo(() => {
-    if (!selectedUser) {
+    if (!selectedUserKey) {
       return [];
     }
 
-    return messagesByUser[selectedUser] ?? [];
-  }, [messagesByUser, selectedUser]);
-
-  useEffect(() => {
-    selectedUserRef.current = selectedUser;
-  }, [selectedUser]);
+    return messagesByUser[selectedUserKey] ?? [];
+  }, [messagesByUser, selectedUserKey]);
 
   const appendMessage = useCallback((conversationUser, incomingMessage) => {
     const normalizedIncoming = normalizeMessage(incomingMessage);
+    const conversationKey = userKey(conversationUser);
+
+    if (!conversationKey) {
+      return;
+    }
 
     setMessagesByUser((prev) => {
-      const existing = prev[conversationUser] ?? [];
+      const existing = prev[conversationKey] ?? [];
       const alreadyExists = existing.some(
         (msg) => messageKey(msg) === messageKey(normalizedIncoming),
       );
@@ -109,7 +115,7 @@ function ChatWindow({ currentUser, selectedUser }) {
 
       return {
         ...prev,
-        [conversationUser]: [...existing, normalizedIncoming],
+        [conversationKey]: [...existing, normalizedIncoming],
       };
     });
   }, []);
@@ -130,12 +136,12 @@ function ChatWindow({ currentUser, selectedUser }) {
 
       setMessagesByUser((prev) => ({
         ...prev,
-        [selectedUser]: loadedMessages,
+        [selectedUserKey]: loadedMessages,
       }));
     } catch (error) {
       console.error("Unable to load messages", error);
     }
-  }, [currentUser, selectedUser]);
+  }, [currentUser, selectedUser, selectedUserKey]);
 
   useEffect(() => {
     if (!selectedUser || !currentUser) {
@@ -153,27 +159,22 @@ function ChatWindow({ currentUser, selectedUser }) {
 
   const onMessageReceived = useCallback(
     (incoming) => {
-      const activeUser = selectedUserRef.current;
+      const message = normalizeMessage(incoming);
 
-      if (!activeUser) {
+      if (!message.content) {
         return;
       }
 
-      const message = normalizeMessage(incoming);
+      const sentByCurrentUser = sameUser(message.sender, currentUser);
+      const receivedByCurrentUser = sameUser(message.receiver, currentUser);
 
-      const isIncomingForActiveConversation =
-        sameUser(message.sender, activeUser) &&
-        sameUser(message.receiver, currentUser);
+      if (sentByCurrentUser) {
+        appendMessage(message.receiver, message);
+        return;
+      }
 
-      const isOwnMessageEchoForActiveConversation =
-        sameUser(message.sender, currentUser) &&
-        sameUser(message.receiver, activeUser);
-
-      if (
-        isIncomingForActiveConversation ||
-        isOwnMessageEchoForActiveConversation
-      ) {
-        appendMessage(activeUser, message);
+      if (receivedByCurrentUser) {
+        appendMessage(message.sender, message);
       }
     },
     [appendMessage, currentUser],
