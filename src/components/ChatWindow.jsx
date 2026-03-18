@@ -36,7 +36,21 @@ const normalizeConversation = (conversation, currentUserName) =>
       isMe: msg.sender === currentUserName,
     }));
 
-function ChatWindow({ selectedUser }) {
+const normalizeRealtimeMessage = (payload) => {
+  const rawMessage = payload?.data ?? payload?.message ?? payload;
+
+  if (typeof rawMessage === "string") {
+    try {
+      return JSON.parse(rawMessage);
+    } catch {
+      return null;
+    }
+  }
+
+  return rawMessage;
+};
+
+function ChatWindow({ selectedUser, onMessageActivity }) {
   const [messages, setMessages] = useState([]);
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
   const stompClientRef = useRef(null);
@@ -118,11 +132,13 @@ function ChatWindow({ selectedUser }) {
         fetchConversation();
       },
       onMessage: (payload) => {
-        const message = payload?.data ?? payload?.message ?? payload;
+        const message = normalizeRealtimeMessage(payload);
 
         if (!message || typeof message !== "object") {
           return;
         }
+
+        onMessageActivity?.(message);
 
         if (isMessageInConversation(message)) {
           setMessages((prev) =>
@@ -148,6 +164,7 @@ function ChatWindow({ selectedUser }) {
     subscribeDestination,
     isMessageInConversation,
     fetchConversation,
+    onMessageActivity,
   ]);
 
   useEffect(() => {
@@ -187,6 +204,7 @@ function ChatWindow({ selectedUser }) {
         selectedUser={selectedUser}
         setMessages={setMessages}
         sendRealtimeMessage={sendRealtimeMessage}
+        onMessageActivity={onMessageActivity}
       />
     </div>
   );
