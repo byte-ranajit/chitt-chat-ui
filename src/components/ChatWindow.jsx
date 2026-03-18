@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
 import authApi from "../api/authApi";
 import { sendMessage as persistMessage } from "../api/chatApi";
 
 function ChatWindow({ currentUser, selectedUser }) {
   const [messages, setMessages] = useState([]);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     if (!selectedUser || !currentUser) {
@@ -42,6 +43,15 @@ function ChatWindow({ currentUser, selectedUser }) {
     }
   });
 
+  useEffect(() => {
+    if (!messagesContainerRef.current) {
+      return;
+    }
+
+    messagesContainerRef.current.scrollTop =
+      messagesContainerRef.current.scrollHeight;
+  }, [messages]);
+
   const sendMessage = async (content) => {
     if (!content || !selectedUser || !currentUser) {
       return;
@@ -67,7 +77,10 @@ function ChatWindow({ currentUser, selectedUser }) {
         {selectedUser ? `Chat with ${selectedUser}` : "Select a user to start"}
       </h3>
 
-      <div className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3">
+      <div
+        ref={messagesContainerRef}
+        className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3"
+      >
         {messages.map((msg, i) => (
           <div key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}>
             <b>{msg.sender}:</b> {msg.content}
