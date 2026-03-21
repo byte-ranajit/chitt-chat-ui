@@ -27,28 +27,29 @@ function asUserName(value) {
   return "";
 }
 
+const MESSAGE_USER_FIELDS = {
+  // We support both `...UserName` and `...Username` because backend payloads can use either casing.
+  sender: ["sender", "senderUser", "senderUserName", "senderUsername", "from"],
+  receiver: [
+    "receiver",
+    "receiverUser",
+    "receiverUserName",
+    "receiverUsername",
+    "to",
+  ],
+};
+
+function pickMessageUser(message, role) {
+  const fields = MESSAGE_USER_FIELDS[role] ?? [];
+  return pickFirst(...fields.map((field) => message?.[field]));
+}
+
 function normalizeMessage(message) {
   return {
     ...message,
     id: pickFirst(message?.id, message?.messageId),
-    sender: asUserName(
-      pickFirst(
-        message?.sender,
-        message?.senderUser,
-        message?.senderUserName,
-        message?.senderUsername,
-        message?.from,
-      ),
-    ),
-    receiver: asUserName(
-      pickFirst(
-        message?.receiver,
-        message?.receiverUser,
-        message?.receiverUserName,
-        message?.receiverUsername,
-        message?.to,
-      ),
-    ),
+    sender: asUserName(pickMessageUser(message, "sender")),
+    receiver: asUserName(pickMessageUser(message, "receiver")),
     content:
       pickFirst(
         message?.content,
@@ -153,7 +154,11 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
-    loadConversation();
+    const timeoutId = setTimeout(() => {
+      void loadConversation();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [currentUser, loadConversation, selectedUser]);
 
   const onMessageReceived = useCallback(

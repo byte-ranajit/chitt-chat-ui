@@ -4,13 +4,17 @@ import { sendMessage } from "../api/chatApi.js";
 
 function ChatInput({ selectedUser, setMessages }) {
   const [text, setText] = useState("");
-  const currentUser = getUser();
 
   const handleSend = async () => {
-    if (!text.trim()) return;
+    const trimmed = text.trim();
 
+    if (!trimmed) {
+      return;
+    }
+
+    const currentUser = getUser();
     const sender = getUserName(currentUser);
-    const receiver = selectedUser?.userName ?? selectedUser?.userName;
+    const receiver = getUserName(selectedUser);
 
     if (!sender || !receiver) {
       console.error("Cannot send message: sender or receiver is missing", {
@@ -22,18 +26,18 @@ function ChatInput({ selectedUser, setMessages }) {
       return;
     }
 
-    const newMsg = {
-      content: text,
+    const messagePayload = {
+      content: trimmed,
       sender,
       receiver,
     };
 
-    const res = await sendMessage(newMsg);
+    const savedMessage = await sendMessage(messagePayload);
 
     setMessages((prev) => [
       ...prev,
       {
-        ...res,
+        ...savedMessage,
         isMe: true,
       },
     ]);
