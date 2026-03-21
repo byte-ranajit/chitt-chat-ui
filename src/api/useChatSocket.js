@@ -22,17 +22,26 @@ export default function useChatSocket(
 ) {
   const clientRef = useRef(null);
   const onMessageReceivedRef = useRef(onMessageReceived);
+  const onConnectionChangeRef = useRef(onConnectionChange);
 
   useEffect(() => {
     onMessageReceivedRef.current = onMessageReceived;
   }, [onMessageReceived]);
 
   useEffect(() => {
+    onConnectionChangeRef.current = onConnectionChange;
+  }, [onConnectionChange]);
+
+  useEffect(() => {
     if (!userName) {
       return undefined;
     }
 
-    const socket = new SockJS("http://localhost:8080/chat");
+    const baseHttpUrl =
+      import.meta.env.VITE_CHAT_HTTP_URL?.trim() || DEFAULT_HTTP_URL;
+    const sockJsPath =
+      import.meta.env.VITE_CHAT_SOCKJS_PATH?.trim() || DEFAULT_SOCKJS_PATH;
+    const token = getToken();
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${baseHttpUrl}${sockJsPath}`),
@@ -44,29 +53,27 @@ export default function useChatSocket(
             Authorization: `Bearer ${token}`,
           }
         : {},
-
       onConnect: () => {
         onConnectionChangeRef.current?.(true);
 
-        const handleIncoming = (message) => {
-          const body = parseSocketMessage(message);
-
         client.subscribe(`/user/${userName}/queue/messages`, (message) => {
-          const body = JSON.parse(message.body);
-          onMessageReceivedRef.current?.(body);
+          const parsed = parseSocketMessage(message);
+
+          if (!parsed) {
+            return;
+          }
+
+          onMessageReceivedRef.current?.(parsed);
         });
       },
-
       onStompError: (frame) => {
         console.error("Broker error:", frame);
         onConnectionChangeRef.current?.(false);
       },
-
       onWebSocketError: (event) => {
         console.error("WebSocket connection error:", event);
         onConnectionChangeRef.current?.(false);
       },
-
       onDisconnect: () => {
         onConnectionChangeRef.current?.(false);
       },
