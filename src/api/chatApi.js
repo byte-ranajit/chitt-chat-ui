@@ -1,50 +1,35 @@
 import authApi from "../api/authApi";
 
-export const sendMessage = async (message) => {
+async function requestData(request, errorLabel) {
   try {
-    const res = await authApi.post("/messages/send", message);
-    return res.data;
+    const response = await request();
+    return response.data;
   } catch (error) {
-    console.error("Send message error:", error);
+    console.error(`${errorLabel}:`, error);
     throw error;
   }
-};
+}
 
-export const getInbox = async (userName) => {
+async function requestVoid(request, errorLabel) {
   try {
-    const res = await authApi.get(`/messages/inbox/${userName}`);
-    return res.data;
+    await request();
   } catch (error) {
-    console.error("Inbox fetch error:", error);
+    console.error(`${errorLabel}:`, error);
     throw error;
   }
-};
+}
 
-export const getAllMessages = async () => {
-  try {
-    const res = await authApi.get("/messages");
-    return res.data;
-  } catch (error) {
-    console.error("Get messages error:", error);
-    throw error;
-  }
-};
+export const sendMessage = (message) =>
+  requestData(() => authApi.post("/messages/send", message), "Send message error");
 
-export const markAsRead = async (messageId) => {
-  try {
-    await authApi.post(`/messages/${messageId}/read`);
-  } catch (error) {
-    console.error("Mark as read error:", error);
-    throw error;
-  }
-};
+export const getInbox = (userName) =>
+  requestData(() => authApi.get(`/messages/inbox/${userName}`), "Inbox fetch error");
 
-export const getUsers = async () => {
-  try {
-    const res = await authApi.get("/user");
-    return res.data;
-  } catch (error) {
-    console.error("Get users error:", error);
-    throw error;
-  }
-};
+export const getAllMessages = () =>
+  requestData(() => authApi.get("/messages"), "Get messages error");
+
+export const markAsRead = (messageId) =>
+  requestVoid(() => authApi.post(`/messages/${messageId}/read`), "Mark as read error");
+
+export const getUsers = () =>
+  requestData(() => authApi.get("/user"), "Get users error");

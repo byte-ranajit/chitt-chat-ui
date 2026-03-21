@@ -1,50 +1,71 @@
-export const getToken = () => {
-  return localStorage.getItem("token");
-};
+const AUTH_STORAGE_KEYS = ["token", "user", "userName"];
 
-export const getUser = () => {
-  const storedUser = localStorage.getItem("user");
-
-  if (storedUser) {
-    return JSON.parse(storedUser);
+function parseJson(value) {
+  if (!value) {
+    return null;
   }
 
-  const token = getToken();
-  if (!token) return null;
-
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload;
+    return JSON.parse(value);
   } catch {
     return null;
   }
+}
+
+export const getToken = () => localStorage.getItem("token");
+
+export const decodeTokenPayload = (token = getToken()) => {
+  if (!token || typeof token !== "string") {
+    return null;
+  }
+
+  try {
+    const [, payloadSegment] = token.split(".");
+
+    if (!payloadSegment) {
+      return null;
+    }
+
+    return parseJson(atob(payloadSegment));
+  } catch {
+    return null;
+  }
+};
+
+export const getUser = () => {
+  const storedUser = parseJson(localStorage.getItem("user"));
+
+  if (storedUser) {
+    return storedUser;
+  }
+
+  return decodeTokenPayload();
 };
 
 export const saveUser = (user) => {
   localStorage.setItem("user", JSON.stringify(user));
 };
 
-export const isLoggedIn = () => {
-  return !!getToken();
-};
+export const isLoggedIn = () => Boolean(getToken());
 
 export const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("userName");
+  AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
 };
 
 export const isTokenExpired = () => {
-  const token = getToken();
-  if (!token) return true;
+  const payload = decodeTokenPayload();
 
-  const payload = JSON.parse(atob(token.split('.')[1]));
+  if (!payload || typeof payload.exp !== "number") {
+    return true;
+  }
+
   return payload.exp * 1000 < Date.now();
 };
 
-
 export const getUserName = (user = getUser()) => {
-  if (!user || typeof user !== "object") return null;
+  if (!user || typeof user !== "object") {
+    return null;
+  }
 
-  return user.userName ?? user.userName ?? user.sub ?? user.preferred_username ?? null;
+  return user.userName ?? user.username ?? user.sub ?? user.preferred_username ?? null;
 };

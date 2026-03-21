@@ -153,7 +153,11 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
-    loadConversation();
+    const timeoutId = setTimeout(() => {
+      void loadConversation();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
   }, [currentUser, loadConversation, selectedUser]);
 
   const onMessageReceived = useCallback(
