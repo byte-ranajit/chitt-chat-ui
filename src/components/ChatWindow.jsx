@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
 import authApi from "../api/authApi";
 import { sendMessage as persistMessage } from "../api/chatApi";
@@ -81,12 +81,8 @@ function messageKey(message) {
 }
 
 function ChatWindow({ currentUser, selectedUser }) {
-  const [messagesByUser, setMessagesByUser] = useState({});
-  const [draft, setDraft] = useState("");
-  const endOfMessagesRef = useRef(null);
-  const selectedUserRef = useRef(selectedUser);
-
-  const selectedUserKey = userKey(selectedUser);
+  const [messages, setMessages] = useState([]);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
@@ -153,65 +149,17 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
-    const initialLoadId = window.setTimeout(() => {
-      loadConversation();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(initialLoadId);
-    };
-  }, [currentUser, loadConversation, selectedUser]);
-
-
   useEffect(() => {
-    if (!selectedUser || !currentUser) {
+    if (!messagesContainerRef.current) {
       return;
     }
 
-    const syncId = window.setInterval(() => {
-      loadConversation();
-    }, 2000);
-
-    return () => {
-      window.clearInterval(syncId);
-    };
-  }, [currentUser, loadConversation, selectedUser]);
-
-  const onMessageReceived = useCallback(
-    (incoming) => {
-      const message = normalizeMessage(incoming);
-
-      const sentByCurrentUser = sameUser(message.sender, currentUser);
-      const receivedByCurrentUser = sameUser(message.receiver, currentUser);
-
-      if (sentByCurrentUser && message.receiver) {
-        appendMessage(message.receiver, message);
-        return;
-      }
-
-      if (receivedByCurrentUser && message.sender) {
-        appendMessage(message.sender, message);
-        return;
-      }
-
-      // Fallback: if we cannot confidently map payload fields, refresh active chat once.
-      if (selectedUserRef.current) {
-        loadConversation();
-      }
-    },
-    [appendMessage, currentUser, loadConversation],
-  );
-
-  useChatSocket(currentUser, onMessageReceived);
-
-  useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesContainerRef.current.scrollTop =
+      messagesContainerRef.current.scrollHeight;
   }, [messages]);
 
-  const sendMessage = async () => {
-    const trimmed = draft.trim();
-
-    if (!trimmed || !selectedUser || !currentUser) {
+  const sendMessage = async (content) => {
+    if (!content || !selectedUser || !currentUser) {
       return;
     }
 
@@ -236,7 +184,10 @@ function ChatWindow({ currentUser, selectedUser }) {
         {selectedUser ? `Chat with ${selectedUser}` : "Select a user to start"}
       </h3>
 
-      <div className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3">
+      <div
+        ref={messagesContainerRef}
+        className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3"
+      >
         {messages.map((msg, i) => (
           <div
             key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}
