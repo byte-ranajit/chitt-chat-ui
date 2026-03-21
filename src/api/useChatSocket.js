@@ -22,25 +22,17 @@ export default function useChatSocket(
 ) {
   const clientRef = useRef(null);
   const onMessageReceivedRef = useRef(onMessageReceived);
-  const onConnectionChangeRef = useRef(onConnectionChange);
 
   useEffect(() => {
     onMessageReceivedRef.current = onMessageReceived;
   }, [onMessageReceived]);
 
   useEffect(() => {
-    onConnectionChangeRef.current = onConnectionChange;
-  }, [onConnectionChange]);
-
-  useEffect(() => {
     if (!userName) {
-      onConnectionChangeRef.current?.(false);
       return undefined;
     }
 
-    const baseHttpUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_HTTP_URL;
-    const sockJsPath = import.meta.env.VITE_SOCKJS_PATH ?? DEFAULT_SOCKJS_PATH;
-    const token = getToken();
+    const socket = new SockJS("http://localhost:8080/chat");
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${baseHttpUrl}${sockJsPath}`),
@@ -59,21 +51,9 @@ export default function useChatSocket(
         const handleIncoming = (message) => {
           const body = parseSocketMessage(message);
 
-          if (!body) {
-            return;
-          }
-
+        client.subscribe(`/user/${userName}/queue/messages`, (message) => {
+          const body = JSON.parse(message.body);
           onMessageReceivedRef.current?.(body);
-        };
-
-        const destinations = [
-          "/user/queue/messages",
-          `/user/${userName}/queue/messages`,
-          "/user/queue/private",
-        ];
-
-        destinations.forEach((destination) => {
-          client.subscribe(destination, handleIncoming);
         });
       },
 

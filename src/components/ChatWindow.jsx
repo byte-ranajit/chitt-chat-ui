@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
 import authApi from "../api/authApi";
 import { sendMessage as persistMessage } from "../api/chatApi";
@@ -81,12 +81,8 @@ function messageKey(message) {
 }
 
 function ChatWindow({ currentUser, selectedUser }) {
-  const [messagesByUser, setMessagesByUser] = useState({});
-  const [draft, setDraft] = useState("");
-  const endOfMessagesRef = useRef(null);
-  const selectedUserRef = useRef(selectedUser);
-
-  const selectedUserKey = userKey(selectedUser);
+  const [messages, setMessages] = useState([]);
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
@@ -163,7 +159,7 @@ function ChatWindow({ currentUser, selectedUser }) {
   }, [currentUser, loadConversation, selectedUser]);
 
   useEffect(() => {
-    if (!selectedUser || !currentUser) {
+    if (!messagesContainerRef.current) {
       return;
     }
 
@@ -206,10 +202,8 @@ function ChatWindow({ currentUser, selectedUser }) {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = async () => {
-    const trimmed = draft.trim();
-
-    if (!trimmed || !selectedUser || !currentUser) {
+  const sendMessage = async (content) => {
+    if (!content || !selectedUser || !currentUser) {
       return;
     }
 
