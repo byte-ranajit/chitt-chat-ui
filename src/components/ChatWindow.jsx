@@ -149,13 +149,57 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
+    const initialLoadId = window.setTimeout(() => {
+      loadConversation();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(initialLoadId);
+    };
+  }, [currentUser, loadConversation, selectedUser]);
+
   useEffect(() => {
     if (!messagesContainerRef.current) {
       return;
     }
 
-    messagesContainerRef.current.scrollTop =
-      messagesContainerRef.current.scrollHeight;
+    const syncId = window.setInterval(() => {
+      loadConversation();
+    }, 2000);
+
+    return () => {
+      window.clearInterval(syncId);
+    };
+  }, [currentUser, loadConversation, selectedUser]);
+
+  const onMessageReceived = useCallback(
+    (incoming) => {
+      const message = normalizeMessage(incoming);
+
+      const sentByCurrentUser = sameUser(message.sender, currentUser);
+      const receivedByCurrentUser = sameUser(message.receiver, currentUser);
+
+      if (sentByCurrentUser && message.receiver) {
+        appendMessage(message.receiver, message);
+        return;
+      }
+
+      if (receivedByCurrentUser && message.sender) {
+        appendMessage(message.sender, message);
+        return;
+      }
+
+      if (selectedUserRef.current) {
+        loadConversation();
+      }
+    },
+    [appendMessage, currentUser, loadConversation],
+  );
+
+  useChatSocket(currentUser, onMessageReceived);
+
+  useEffect(() => {
+    endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = async (content) => {
@@ -179,38 +223,55 @@ function ChatWindow({ currentUser, selectedUser }) {
   };
 
   return (
-    <div className="flex flex-1 flex-col p-4">
-      <h3 className="mb-3 text-lg font-semibold">
-        {selectedUser ? `Chat with ${selectedUser}` : "Select a user to start"}
-      </h3>
+    <section className="flex min-w-0 flex-1 flex-col bg-slate-900/40 p-4 md:p-6">
+      <header className="mb-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3">
+        <p className="text-xs uppercase tracking-wider text-slate-400">Active conversation</p>
+        <h3 className="mt-1 text-lg font-semibold text-white">
+          {selectedUser ? `@${selectedUser}` : "Select a user to start chatting"}
+        </h3>
+      </header>
 
-      <div
-        ref={messagesContainerRef}
-        className="mb-4 h-[400px] overflow-y-auto rounded border border-gray-700 p-3"
-      >
-        {messages.map((msg, i) => (
-          <div
-            key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}
-            className={`mb-2 flex ${sameUser(msg.sender, currentUser) ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[75%] rounded px-3 py-2 ${
-                sameUser(msg.sender, currentUser) ? "bg-green-600" : "bg-gray-700"
-              }`}
-            >
-              <p className="text-xs text-gray-200">{msg.sender}</p>
-              <p>{msg.content}</p>
-            </div>
+      <div className="mb-4 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/70 p-3 md:p-4">
+        {!selectedUser ? (
+          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+            Pick a conversation from the sidebar.
           </div>
-        ))}
+        ) : (
+          messages.map((msg, i) => (
+            <div
+              key={msg.id ?? `${msg.sender}-${msg.receiver}-${i}`}
+              className={`mb-3 flex ${sameUser(msg.sender, currentUser) ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[82%] rounded-2xl border px-4 py-2 shadow-sm md:max-w-[72%] ${
+                  sameUser(msg.sender, currentUser)
+                    ? "border-indigo-300/20 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white"
+                    : "border-white/10 bg-slate-800 text-slate-100"
+                }`}
+              >
+                <p
+                  className={`mb-0.5 text-xs ${
+                    sameUser(msg.sender, currentUser)
+                      ? "text-indigo-100/90"
+                      : "text-slate-400"
+                  }`}
+                >
+                  {msg.sender}
+                </p>
+                <p className="break-words text-sm leading-relaxed">{msg.content}</p>
+              </div>
+            </div>
+          ))
+        )}
         <div ref={endOfMessagesRef} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-900/90 p-2">
         <input
           value={draft}
-          className="w-full rounded border border-gray-700 bg-gray-800 p-2"
-          placeholder="Type message..."
+          className="w-full rounded-xl border border-transparent bg-slate-800 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-indigo-300/60"
+          placeholder={selectedUser ? "Type your message..." : "Select a user to start typing"}
+          disabled={!selectedUser}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -221,12 +282,13 @@ function ChatWindow({ currentUser, selectedUser }) {
         <button
           type="button"
           onClick={sendMessage}
-          className="rounded bg-green-600 px-4 py-2 font-medium hover:bg-green-500"
+          disabled={!selectedUser || !draft.trim()}
+          className="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
         >
           Send
         </button>
       </div>
-    </div>
+    </section>
   );
 }
 

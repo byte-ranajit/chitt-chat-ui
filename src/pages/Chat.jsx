@@ -26,13 +26,18 @@ function Chat() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
-      <Sidebar onSelectUser={setSelectedUser} />
-      <ChatWindow
-        currentUser={currentUserName}
-        selectedUser={selectedUser?.userName ?? null}
-      />
-    </div>
+    <main className="min-h-screen bg-slate-950 p-4 text-slate-100 md:p-8">
+      <section className="mx-auto flex h-[calc(100vh-2rem)] max-w-7xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 shadow-2xl shadow-black/30 backdrop-blur md:h-[calc(100vh-4rem)]">
+        <Sidebar
+          onSelectUser={setSelectedUser}
+          selectedUserName={selectedUser?.userName ?? null}
+        />
+        <ChatWindow
+          currentUser={currentUserName}
+          selectedUser={selectedUser?.userName ?? null}
+        />
+      </section>
+    </main>
   );
 }
 
