@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useChatSocket from "../api/useChatSocket";
 import authApi from "../api/authApi";
 import { sendMessage as persistMessage } from "../api/chatApi";
@@ -30,33 +30,33 @@ function asUserName(value) {
 function normalizeMessage(message) {
   return {
     ...message,
-    id: pickFirst(message.id, message.messageId),
+    id: pickFirst(message?.id, message?.messageId),
     sender: asUserName(
       pickFirst(
-        message.sender,
-        message.senderUser,
-        message.senderUserName,
-        message.senderUsername,
-        message.from,
+        message?.sender,
+        message?.senderUser,
+        message?.senderUserName,
+        message?.senderUsername,
+        message?.from,
       ),
     ),
     receiver: asUserName(
       pickFirst(
-        message.receiver,
-        message.receiverUser,
-        message.receiverUserName,
-        message.receiverUsername,
-        message.to,
+        message?.receiver,
+        message?.receiverUser,
+        message?.receiverUserName,
+        message?.receiverUsername,
+        message?.to,
       ),
     ),
     content:
       pickFirst(
-        message.content,
-        message.message,
-        message.text,
-        message.messageContent,
+        message?.content,
+        message?.message,
+        message?.text,
+        message?.messageContent,
       ) ?? "",
-    createdAt: pickFirst(message.createdAt, message.timestamp),
+    createdAt: pickFirst(message?.createdAt, message?.timestamp),
   };
 }
 
@@ -81,8 +81,12 @@ function messageKey(message) {
 }
 
 function ChatWindow({ currentUser, selectedUser }) {
-  const [messages, setMessages] = useState([]);
-  const messagesContainerRef = useRef(null);
+  const [messagesByUser, setMessagesByUser] = useState({});
+  const [draft, setDraft] = useState("");
+  const endOfMessagesRef = useRef(null);
+  const selectedUserRef = useRef(selectedUser);
+
+  const selectedUserKey = useMemo(() => userKey(selectedUser), [selectedUser]);
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
@@ -149,27 +153,7 @@ function ChatWindow({ currentUser, selectedUser }) {
       return;
     }
 
-    const initialLoadId = window.setTimeout(() => {
-      loadConversation();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(initialLoadId);
-    };
-  }, [currentUser, loadConversation, selectedUser]);
-
-  useEffect(() => {
-    if (!messagesContainerRef.current) {
-      return;
-    }
-
-    const syncId = window.setInterval(() => {
-      loadConversation();
-    }, 2000);
-
-    return () => {
-      window.clearInterval(syncId);
-    };
+    loadConversation();
   }, [currentUser, loadConversation, selectedUser]);
 
   const onMessageReceived = useCallback(
@@ -202,8 +186,10 @@ function ChatWindow({ currentUser, selectedUser }) {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = async (content) => {
-    if (!content || !selectedUser || !currentUser) {
+  const sendMessage = useCallback(async () => {
+    const trimmed = draft.trim();
+
+    if (!trimmed || !selectedUser || !currentUser) {
       return;
     }
 
@@ -220,12 +206,14 @@ function ChatWindow({ currentUser, selectedUser }) {
     } catch (error) {
       console.error("Unable to send message", error);
     }
-  };
+  }, [appendMessage, currentUser, draft, selectedUser]);
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-slate-900/40 p-4 md:p-6">
       <header className="mb-4 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3">
-        <p className="text-xs uppercase tracking-wider text-slate-400">Active conversation</p>
+        <p className="text-xs uppercase tracking-wider text-slate-400">
+          Active conversation
+        </p>
         <h3 className="mt-1 text-lg font-semibold text-white">
           {selectedUser ? `@${selectedUser}` : "Select a user to start chatting"}
         </h3>
